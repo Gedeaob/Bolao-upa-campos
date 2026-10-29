@@ -21,7 +21,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
 // ⚠️ TROQUE PELA URL DO SEU DEPLOY DO APPS SCRIPT
-export const SCRIPT_URL = "COLE_AQUI_A_URL_DO_WEB_APP_DO_APPS_SCRIPT";
+export const SCRIPT_URL = "AKfycbzmPESWMTd7lsy_TJZSfmkLkJi6jm4thVLHkHtP6M_seVeAYzpCGQQBK8_glE2PaxeJ";
 
 export const SHEET_ID = "11CFJmhxk9NGVhHa0VHfPtLLS1I7AJtf7jfx9qJf1Ydw";
 

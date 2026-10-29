@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bolão UPA Campos — Painel</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎲</text></svg>">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="app-page">
+
+<nav class="navbar">
+  <div class="nav-content">
+    <div class="brand"><i class="fas fa-dice"></i> Bolão UPA Campos</div>
+    <div class="nav-user">
+      <span id="user-email-display" class="user-email"></span>
+      <span id="user-role-badge" class="role-badge"></span>
+      <button class="nav-btn nav-btn-danger" id="btn-logout" title="Sair">
+        <i class="fas fa-sign-out-alt"></i>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div class="container">
+    <div class="page-header">
+      <h2><i class="fas fa-ticket-alt"></i> Meus Bolões</h2>
+      <div class="actions">
+        <button class="btn-secondary" id="btn-entrar-senha">
+          <i class="fas fa-key"></i> Entrar em um bolão
+        </button>
+        <button class="btn-primary admin-only" id="btn-criar-bolao">
+          <i class="fas fa-plus"></i> Criar novo bolão
+        </button>
+      </div>
+    </div>
+
+    <div id="lista-boloes"></div>
+  </div>
+</main>
+
+<!-- MODAL: Entrar por senha -->
+<div id="modal-senha" class="modal-overlay">
+  <div class="modal-box">
+    <h3><i class="fas fa-key"></i> Entrar em um bolão</h3>
+    <p>Informe a senha do bolão que você recebeu do administrador.</p>
+    <div class="input-group">
+      <label>Senha do bolão</label>
+      <input type="password" id="senha-bolao-input" class="input-control" placeholder="••••••••">
+    </div>
+    <div id="senha-resultado"></div>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="document.getElementById('modal-senha').classList.remove('active')">
+        <i class="fas fa-times"></i> Cancelar
+      </button>
+      <button class="btn-primary" id="btn-validar-senha">
+        <i class="fas fa-search"></i> Verificar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Criar bolão -->
+<div id="modal-criar" class="modal-overlay">
+  <div class="modal-box modal-lg">
+    <h3><i class="fas fa-plus-circle"></i> Criar novo bolão</h3>
+    <form id="form-criar-bolao">
+      <div class="form-grid">
+        <div class="input-group full-width">
+          <label>Nome do bolão *</label>
+          <input type="text" id="novo-nome" class="input-control" required placeholder="Ex: Mega-Sena Concurso 2700">
+        </div>
+        <div class="input-group">
+          <label>Modalidade *</label>
+          <select id="novo-modalidade" class="input-control" required>
+            <option value="Mega-Sena">Mega-Sena (6 números de 1 a 60)</option>
+            <option value="Lotofácil">Lotofácil (15 números de 1 a 25)</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Máximo de participantes *</label>
+          <input type="number" id="novo-max" class="input-control" required value="30" min="1">
+        </div>
+        <div class="input-group">
+          <label>Valor da participação (R$) *</label>
+          <input type="number" id="novo-valor" class="input-control" required step="0.01" min="0" value="12.00">
+        </div>
+        <div class="input-group">
+          <label>Jogos por participante *</label>
+          <input type="number" id="novo-qtd-jogos" class="input-control" required value="1" min="1" max="5">
+        </div>
+        <div class="input-group">
+          <label>Número do concurso</label>
+          <input type="text" id="novo-concurso" class="input-control" placeholder="Ex: 2700">
+        </div>
+        <div class="input-group">
+          <label>Senha do bolão *</label>
+          <input type="text" id="novo-senha" class="input-control" required placeholder="Senha de acesso">
+        </div>
+        <div class="input-group">
+          <label>Data do sorteio</label>
+          <input type="date" id="novo-data-sorteio" class="input-control">
+        </div>
+        <div class="input-group">
+          <label>Hora do sorteio</label>
+          <input type="time" id="novo-hora-sorteio" class="input-control">
+        </div>
+        <div class="input-group full-width">
+          <label>Prazo para pagamento *</label>
+          <input type="datetime-local" id="novo-prazo" class="input-control" required>
+          <small style="color:#6a7a8a; font-size:0.78rem; margin-top:4px;">
+            Após este prazo, participantes sem pagamento serão bloqueados automaticamente.
+          </small>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn-secondary" onclick="document.getElementById('modal-criar').classList.remove('active')">
+          <i class="fas fa-times"></i> Cancelar
+        </button>
+        <button type="submit" class="btn-primary">
+          <i class="fas fa-save"></i> Criar Bolão
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<div id="global-loader" aria-hidden="true">
+  <div class="loader"></div>
+  <div class="loader-texto" id="loader-texto">Carregando...</div>
+</div>
+
+<script type="module" src="script_painel.js"></script>
+</body>
+</html>

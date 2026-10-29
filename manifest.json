@@ -1,0 +1,15 @@
+{
+  "short_name": "Bolão UPA",
+  "name": "Bolão UPA Campos dos Goytacazes",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
+  ],
+  "start_url": "/painel.html",
+  "background_color": "#1e3a8a",
+  "display": "standalone",
+  "theme_color": "#1e3a8a"
+}

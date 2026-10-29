@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bolão — UPA Campos</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎲</text></svg>">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="app-page">
+
+<nav class="navbar">
+  <div class="nav-content">
+    <a href="painel.html" class="nav-btn"><i class="fas fa-arrow-left"></i> Voltar</a>
+    <div class="brand" id="brand-bolao"><i class="fas fa-dice"></i> Bolão</div>
+    <div class="nav-user">
+      <span id="user-email-display" class="user-email"></span>
+      <span id="user-role-badge" class="role-badge"></span>
+      <button class="nav-btn nav-btn-danger" id="btn-logout" title="Sair">
+        <i class="fas fa-sign-out-alt"></i>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div class="container" id="bolao-container">
+    <p class="loading-text"><i class="fas fa-spinner fa-spin"></i> Carregando bolão...</p>
+  </div>
+</main>
+
+<div id="toast-container" class="toast-container"></div>
+
+<div id="global-loader" aria-hidden="true">
+  <div class="loader"></div>
+  <div class="loader-texto" id="loader-texto">Carregando...</div>
+</div>
+
+<script type="module" src="script_bolao.js"></script>
+</body>
+</html>

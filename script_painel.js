@@ -1,11 +1,14 @@
 import {
   auth, onAuthStateChanged, signOut,
-  ADMIN_EMAILS, apiRequest, toast,
-  fmtRS, fmtData, fmtDataHora, escapeHtml
+  ADMIN_EMAILS, MODALIDADES, apiRequest, apiRequestCached, invalidarCacheApi,
+  toast, fmtRS, fmtData, fmtDataHora, escapeHtml
 } from "./firebase-config.js";
 
 let userEmail = '';
-let isAdmin = false;
+let isAdmin   = false;
+
+// ⬇️⬇️ NOVO: controla o modo do formulário (evita duplicação)
+let editandoId = null;   // null = criar, string = editar
 
 // ============================================================
 // AUTH
@@ -13,24 +16,34 @@ let isAdmin = false;
 onAuthStateChanged(auth, async (user) => {
   if (!user) { window.location.href = 'index.html'; return; }
   userEmail = (user.email || '').toLowerCase();
-  isAdmin = ADMIN_EMAILS.includes(userEmail);
+  isAdmin   = ADMIN_EMAILS.includes(userEmail);
 
   document.getElementById('user-email-display').textContent = userEmail;
   const badge = document.getElementById('user-role-badge');
   badge.textContent = isAdmin ? 'ADMIN' : 'PARTICIPANTE';
-  badge.className = 'role-badge ' + (isAdmin ? 'admin' : 'visualizador');
+  badge.className   = 'role-badge ' + (isAdmin ? 'admin' : 'visualizador');
 
   document.body.classList.toggle('is-admin', isAdmin);
-
+  popularModalidades();
   await carregarBoloes();
 });
 
 document.getElementById('btn-logout')?.addEventListener('click', async () => {
   if (!confirm('Sair do sistema?')) return;
-  await signOut(auth);
-  sessionStorage.clear();
+  await signOut(auth); sessionStorage.clear();
   window.location.href = 'index.html';
 });
+
+// ============================================================
+// MODALIDADES — preenche o <select> do formulário
+// ============================================================
+function popularModalidades() {
+  const sel = document.getElementById('novo-modalidade');
+  if (!sel) return;
+  sel.innerHTML = Object.entries(MODALIDADES)
+    .map(([key, v]) => `<option value="${key}">${v.label}</option>`)
+    .join('');
+}
 
 // ============================================================
 // LISTAR BOLÕES
@@ -39,9 +52,10 @@ async function carregarBoloes() {
   const container = document.getElementById('lista-boloes');
   container.innerHTML = '<p class="loading-text"><i class="fas fa-spinner fa-spin"></i> Carregando...</p>';
   try {
-    const data = await apiRequest(isAdmin ? 'listarBoloesAdmin' : 'listarMeusBoloes', {
-      email: userEmail, isAdmin
-    });
+    const data = await apiRequest(
+      isAdmin ? 'listarBoloesAdmin' : 'listarMeusBoloes',
+      { email: userEmail, isAdmin }
+    );
     const boloes = data.boloes || [];
     if (boloes.length === 0) {
       container.innerHTML = `
@@ -62,19 +76,14 @@ function renderBolaoCard(b) {
   const pct = b.max_participantes > 0
     ? Math.min(100, Math.round((b.pagos / b.max_participantes) * 100))
     : 0;
-  const statusLabel = {
-    ativo: 'Aberto',
-    sorteado: 'Sorteado',
-    encerrado: 'Encerrado'
-  }[b.status] || b.status;
-
+  const statusLabel = { ativo:'Aberto', sorteado:'Sorteado', encerrado:'Encerrado' }[b.status] || b.status;
   const minha = b.minha_participacao;
   const meuStatus = minha
     ? (minha.status_pagamento === 'pago'
         ? '<span class="tag tag-success">PAGO</span>'
         : !minha.ativo
           ? '<span class="tag tag-danger">BLOQUEADO</span>'
-          : '<span class="tag tag-warning">PAGAMENTO PENDENTE</span>')
+          : '<span class="tag tag-warning">PENDENTE</span>')
     : '';
 
   return `
@@ -94,35 +103,17 @@ function renderBolaoCard(b) {
           <small>${b.qtd_jogos} jogo${b.qtd_jogos > 1 ? 's' : ''}</small>
         </div>
       </div>
-
       <div class="bolao-card-body">
         <div class="bolao-info-grid">
-          <div class="bolao-info-item">
-            <i class="fas fa-users"></i>
-            <span><strong>${b.pagos}</strong> / ${b.max_participantes} pagos</span>
-          </div>
-          <div class="bolao-info-item">
-            <i class="fas fa-clock"></i>
-            <span>${b.pendentes} pendente${b.pendentes !== 1 ? 's' : ''}</span>
-          </div>
-          <div class="bolao-info-item">
-            <i class="fas fa-calendar"></i>
-            <span>${b.data_sorteio ? fmtData(b.data_sorteio) : 'Data a definir'} ${b.hora_sorteio || ''}</span>
-          </div>
-          <div class="bolao-info-item">
-            <i class="fas fa-hourglass-half"></i>
-            <span>Prazo: ${b.prazo_pagamento ? fmtDataHora(b.prazo_pagamento) : '-'}</span>
-          </div>
+          <div class="bolao-info-item"><i class="fas fa-users"></i><span><strong>${b.pagos}</strong> / ${b.max_participantes} pagos</span></div>
+          <div class="bolao-info-item"><i class="fas fa-clock"></i><span>${b.pendentes} pendente${b.pendentes !== 1 ? 's' : ''}</span></div>
+          <div class="bolao-info-item"><i class="fas fa-calendar"></i><span>${b.data_sorteio ? fmtData(b.data_sorteio) : 'Data a definir'} ${b.hora_sorteio || ''}</span></div>
+          <div class="bolao-info-item"><i class="fas fa-hourglass-half"></i><span>Prazo: ${b.prazo_pagamento ? fmtDataHora(b.prazo_pagamento) : '-'}</span></div>
         </div>
-
-        <div class="progress-bar">
-          <div class="progress-fill" style="width:${pct}%"></div>
-        </div>
-
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
         <div class="bolao-card-actions">
           <a href="bolao.html?id=${encodeURIComponent(b.id)}" class="btn-primary btn-sm">
-            <i class="fas fa-sign-in-alt"></i>
-            ${minha ? 'Acessar bolão' : 'Entrar no bolão'}
+            <i class="fas fa-sign-in-alt"></i> ${minha ? 'Acessar bolão' : 'Entrar no bolão'}
           </a>
           ${isAdmin ? `
             <button class="btn-secondary btn-sm" onclick="window.abrirEdicao('${b.id}')">
@@ -134,8 +125,7 @@ function renderBolaoCard(b) {
           ` : ''}
         </div>
       </div>
-    </div>
-  `;
+    </div>`;
 }
 
 // ============================================================
@@ -170,21 +160,30 @@ document.getElementById('btn-validar-senha')?.addEventListener('click', async ()
         <a href="bolao.html?id=${encodeURIComponent(b.id)}&senha=${encodeURIComponent(senha)}" class="btn-primary btn-sm">
           Entrar
         </a>
-      </div>
-    `).join('');
+      </div>`).join('');
   } catch (e) {
     resultado.innerHTML = `<p style="color:var(--danger)">${escapeHtml(e.message)}</p>`;
   }
 });
 
 // ============================================================
-// CRIAR BOLÃO
+// CRIAR / EDITAR — agora com UM ÚNICO handler
 // ============================================================
 document.getElementById('btn-criar-bolao')?.addEventListener('click', () => {
-  // Pré-preencher prazo com 7 dias
+  editandoId = null;
+  const form = document.getElementById('form-criar-bolao');
+  form.reset();
+  document.getElementById('novo-senha').placeholder = 'Senha de acesso';
+  document.getElementById('modal-criar').querySelector('h3').innerHTML =
+    '<i class="fas fa-plus-circle"></i> Criar novo bolão';
+  form.querySelector('button[type="submit"]').innerHTML =
+    '<i class="fas fa-save"></i> Criar Bolão';
+
+  // Prazo padrão: 7 dias
   const daqui7 = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const local = new Date(daqui7.getTime() - daqui7.getTimezoneOffset() * 60000);
   document.getElementById('novo-prazo').value = local.toISOString().slice(0, 16);
+
   document.getElementById('modal-criar').classList.add('active');
 });
 
@@ -193,7 +192,7 @@ document.getElementById('form-criar-bolao')?.addEventListener('submit', async (e
   const btn = e.submitter || e.target.querySelector('button[type="submit"]');
   const original = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando...';
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
 
   const dados = {
     nome: document.getElementById('novo-nome').value.trim(),
@@ -202,17 +201,30 @@ document.getElementById('form-criar-bolao')?.addEventListener('submit', async (e
     valor_participacao: Number(document.getElementById('novo-valor').value),
     qtd_jogos: Number(document.getElementById('novo-qtd-jogos').value),
     concurso: document.getElementById('novo-concurso').value.trim(),
-    senha: document.getElementById('novo-senha').value,
     data_sorteio: document.getElementById('novo-data-sorteio').value,
     hora_sorteio: document.getElementById('novo-hora-sorteio').value,
     prazo_pagamento: document.getElementById('novo-prazo').value
   };
+  const senhaInput = document.getElementById('novo-senha').value;
+  if (senhaInput) dados.senha = senhaInput;
 
   try {
-    await apiRequest('criarBolao', { isAdmin: true, email: userEmail, dados });
-    toast('Bolão criado com sucesso!', 'success');
+    if (editandoId) {
+      // EDIÇÃO — chama atualizarBolao (NÃO criarBolao)
+      await apiRequest('atualizarBolao', {
+        isAdmin: true, id: editandoId, dados
+      });
+      toast('Bolão atualizado!', 'success');
+      editandoId = null;
+    } else {
+      // CRIAÇÃO
+      if (!dados.senha) { toast('Informe a senha do bolão.', 'warning'); return; }
+      await apiRequest('criarBolao', { isAdmin: true, email: userEmail, dados });
+      toast('Bolão criado com sucesso!', 'success');
+    }
     document.getElementById('modal-criar').classList.remove('active');
     document.getElementById('form-criar-bolao').reset();
+    invalidarCacheApi('listarBoloes');
     await carregarBoloes();
   } catch (err) {
     toast('Erro: ' + err.message, 'error');
@@ -223,24 +235,14 @@ document.getElementById('form-criar-bolao')?.addEventListener('submit', async (e
 });
 
 // ============================================================
-// AÇÕES ADMIN
+// ABRIR EDIÇÃO — apenas preenche o form e muda o título
 // ============================================================
-window.excluirBolao = async (id, nome) => {
-  if (!confirm(`Excluir o bolão "${nome}"? (Será apenas desativado, os dados ficam preservados.)`)) return;
-  try {
-    await apiRequest('excluirBolao', { isAdmin: true, id });
-    toast('Bolão excluído.', 'success');
-    await carregarBoloes();
-  } catch (e) {
-    toast('Erro: ' + e.message, 'error');
-  }
-};
-
 window.abrirEdicao = async (id) => {
-  // Carregar dados do bolão e abrir modal de edição (reuso o form de criação, adaptando)
   try {
     const data = await apiRequest('obterBolao', { email: userEmail, isAdmin: true, id });
     const b = data.bolao;
+
+    editandoId = id;
     document.getElementById('novo-nome').value = b.nome;
     document.getElementById('novo-modalidade').value = b.modalidade;
     document.getElementById('novo-max').value = b.max_participantes;
@@ -253,38 +255,35 @@ window.abrirEdicao = async (id) => {
     document.getElementById('novo-hora-sorteio').value = b.hora_sorteio || '';
     document.getElementById('novo-prazo').value = (b.prazo_pagamento || '').slice(0, 16);
 
-    // Substituir submit por edição
-    const form = document.getElementById('form-criar-bolao');
-    const btn = form.querySelector('button[type="submit"]');
-    btn.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
-    const handler = async (ev) => {
-      ev.preventDefault();
-      const dados = {
-        nome: document.getElementById('novo-nome').value.trim(),
-        modalidade: document.getElementById('novo-modalidade').value,
-        max_participantes: Number(document.getElementById('novo-max').value),
-        valor_participacao: Number(document.getElementById('novo-valor').value),
-        qtd_jogos: Number(document.getElementById('novo-qtd-jogos').value),
-        concurso: document.getElementById('novo-concurso').value.trim(),
-        data_sorteio: document.getElementById('novo-data-sorteio').value,
-        hora_sorteio: document.getElementById('novo-hora-sorteio').value,
-        prazo_pagamento: document.getElementById('novo-prazo').value
-      };
-      const novaSenha = document.getElementById('novo-senha').value;
-      if (novaSenha) dados.senha = novaSenha;
-      try {
-        await apiRequest('atualizarBolao', { isAdmin: true, id, dados });
-        toast('Bolão atualizado!', 'success');
-        document.getElementById('modal-criar').classList.remove('active');
-        form.removeEventListener('submit', handler);
-        location.reload();
-      } catch (err) {
-        toast('Erro: ' + err.message, 'error');
-      }
-    };
-    form.addEventListener('submit', handler, { once: true });
+    // Atualiza o título e o botão do modal
+    document.getElementById('modal-criar').querySelector('h3').innerHTML =
+      '<i class="fas fa-pen"></i> Editar bolão';
+    document.getElementById('form-criar-bolao')
+      .querySelector('button[type="submit"]').innerHTML =
+      '<i class="fas fa-save"></i> Salvar Alterações';
+
     document.getElementById('modal-criar').classList.add('active');
   } catch (e) {
     toast('Erro: ' + e.message, 'error');
   }
+};
+
+// Reset do modo edição quando o modal fecha
+document.getElementById('modal-criar')?.addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) {
+    editandoId = null;
+  }
+});
+
+// ============================================================
+// EXCLUIR
+// ============================================================
+window.excluirBolao = async (id, nome) => {
+  if (!confirm(`Excluir o bolão "${nome}"? (Será apenas desativado, os dados ficam preservados.)`)) return;
+  try {
+    await apiRequest('excluirBolao', { isAdmin: true, id });
+    toast('Bolão excluído.', 'success');
+    invalidarCacheApi('listarBoloes');
+    await carregarBoloes();
+  } catch (e) { toast('Erro: ' + e.message, 'error'); }
 };

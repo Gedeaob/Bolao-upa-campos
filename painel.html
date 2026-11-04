@@ -75,10 +75,7 @@
         </div>
         <div class="input-group">
           <label>Modalidade *</label>
-          <select id="novo-modalidade" class="input-control" required>
-            <option value="Mega-Sena">Mega-Sena (6 números de 1 a 60)</option>
-            <option value="Lotofácil">Lotofácil (15 números de 1 a 25)</option>
-          </select>
+          <select id="novo-modalidade" class="input-control" required></select>
         </div>
         <div class="input-group">
           <label>Máximo de participantes *</label>
@@ -135,6 +132,9 @@
   <div class="loader-texto" id="loader-texto">Carregando...</div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module" src="script_painel.js"></script>
 </body>
 </html>

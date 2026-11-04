@@ -38,6 +38,44 @@
   <div class="loader-texto" id="loader-texto">Carregando...</div>
 </div>
 
+<div id="modal-pdf-opcoes" class="modal-overlay">
+  <div class="modal-box modal-lg">
+    <h3><i class="fas fa-file-pdf"></i> Opções do PDF</h3>
+    <p style="color:#666; font-size:0.88rem; margin-bottom:20px;">
+      Escolha o tamanho da fonte e a orientação.
+    </p>
+    <div class="pdf-opt-group">
+      <label class="pdf-opt-label"><i class="fas fa-font"></i> Tamanho da Fonte</label>
+      <div class="pdf-opt-radios">
+        <label class="pdf-opt-radio"><input type="radio" name="pdf-fonte" value="10" checked><span><strong>Padrão</strong><small>10pt</small></span></label>
+        <label class="pdf-opt-radio"><input type="radio" name="pdf-fonte" value="9"><span><strong>Pequena</strong><small>9pt</small></span></label>
+        <label class="pdf-opt-radio"><input type="radio" name="pdf-fonte" value="8"><span><strong>Menor</strong><small>8pt</small></span></label>
+      </div>
+    </div>
+    <div class="pdf-opt-group">
+      <label class="pdf-opt-label"><i class="fas fa-file"></i> Orientação</label>
+      <div class="pdf-opt-radios">
+        <label class="pdf-opt-radio"><input type="radio" name="pdf-orient" value="portrait" checked><span><strong>Retrato</strong><small>Vertical</small></span></label>
+        <label class="pdf-opt-radio"><input type="radio" name="pdf-orient" value="landscape"><span><strong>Paisagem</strong><small>Horizontal</small></span></label>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" onclick="document.getElementById('modal-pdf-opcoes').classList.remove('active')">
+        <i class="fas fa-times"></i> Cancelar
+      </button>
+      <button type="button" class="btn-primary" onclick="
+        const f = parseInt(document.querySelector('input[name=pdf-fonte]:checked').value);
+        const o = document.querySelector('input[name=pdf-orient]:checked').value;
+        document.getElementById('modal-pdf-opcoes').classList.remove('active');
+        window.gerarPdfBolao(f, o);
+      "><i class="fas fa-download"></i> Gerar PDF</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module" src="script_bolao.js"></script>
 </body>
 </html>

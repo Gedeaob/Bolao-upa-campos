@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bolão GB Campos — Painel</title>
+<link rel="icon" type="image/png" href="imagem/logo-192.png">
+<link rel="apple-touch-icon" href="imagem/logo-192.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e3a8a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bolão UPA">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="app-page">
+
+<nav class="navbar">
+  <div class="nav-content">
+    <div class="brand"><i class="fas fa-dice"></i> Bolão GB Campos</div>
+    <div class="nav-user">
+      <span id="user-email-display" class="user-email"></span>
+      <span id="user-role-badge" class="role-badge"></span>
+      <button class="nav-btn nav-btn-danger" id="btn-logout" title="Sair">
+        <i class="fas fa-sign-out-alt"></i>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div class="container">
+    <div class="page-header">
+      <h2><i class="fas fa-ticket-alt"></i> Meus Bolões</h2>
+      <div class="actions">
+        <button class="btn-secondary" id="btn-entrar-senha">
+          <i class="fas fa-key"></i> Entrar em um bolão
+        </button>
+        <button class="btn-primary admin-only" id="btn-criar-bolao">
+          <i class="fas fa-plus"></i> Criar novo bolão
+        </button>
+      </div>
+    </div>
+    <div id="lista-boloes"></div>
+  </div>
+</main>
+
+<footer class="painel-footer no-print">
+  <span>Desenvolvido por:</span>
+  <a href="https://wa.me/qr/7UJXOZI2AEMBL1" target="_blank" rel="noopener noreferrer"
+     aria-label="Fale com Tech GB pelo WhatsApp" class="painel-footer-link">
+    <img src="imagem/logo1-192.png" alt="Tech GB" class="footer-logo" onerror="this.style.display='none'">
+    <span class="footer-nome">Tech GB</span>
+    <i class="fab fa-whatsapp" aria-hidden="true"></i>
+  </a>
+</footer>
+
+<!-- MODAL: Entrar por senha -->
+<div id="modal-senha" class="modal-overlay">
+  <div class="modal-box">
+    <h3><i class="fas fa-key"></i> Entrar em um bolão</h3>
+    <p>Informe a senha do bolão que você recebeu do administrador.</p>
+    <div class="input-group">
+      <label>Senha do bolão</label>
+      <input type="password" id="senha-bolao-input" class="input-control" placeholder="••••••••">
+    </div>
+    <div id="senha-resultado"></div>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="document.getElementById('modal-senha').classList.remove('active')">
+        <i class="fas fa-times"></i> Cancelar
+      </button>
+      <button class="btn-primary" id="btn-validar-senha">
+        <i class="fas fa-search"></i> Verificar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Criar/editar bolão -->
+<div id="modal-criar" class="modal-overlay">
+  <div class="modal-box modal-lg">
+    <h3><i class="fas fa-plus-circle"></i> Criar novo bolão</h3>
+    <form id="form-criar-bolao">
+      <div class="form-grid">
+
+        <div class="input-group full-width">
+          <label>Nome do bolão *</label>
+          <input type="text" id="novo-nome" class="input-control" required placeholder="Ex: Mega-Sena Concurso 2700">
+        </div>
+
+        <div class="input-group">
+          <label>Modalidade *</label>
+          <select id="novo-modalidade" class="input-control" required
+                  onchange="window.atualizarCamposModalidade()"></select>
+        </div>
+
+        <div class="input-group">
+          <label>Dezenas por jogo *</label>
+          <input type="number" id="novo-dezenas" class="input-control" required value="6" min="6" max="20"
+                 oninput="window.atualizarValorSugerido()" onchange="window.atualizarValorSugerido()">
+          <small id="dezenas-help" style="color:#6a7a8a; font-size:0.75rem; margin-top:4px;"></small>
+        </div>
+
+        <div class="input-group full-width">
+          <label>Valor estimado do prêmio (R$)</label>
+          <input type="number" id="novo-premio" class="input-control" step="0.01" min="0" placeholder="Ex: 50000000">
+          <small style="color:#6a7a8a; font-size:0.75rem; margin-top:4px;">
+            💰 Aparece em destaque + por extenso. Pode ser editado depois.
+          </small>
+        </div>
+
+        <div class="input-group">
+          <label>Máximo de participantes *</label>
+          <input type="number" id="novo-max" class="input-control" required value="30" min="1">
+        </div>
+
+        <div class="input-group">
+          <label>Valor da participação (R$) *</label>
+          <input type="number" id="novo-valor" class="input-control" required step="0.01" min="0" value="12.00">
+          <small id="valor-sugerido-info" style="color:#6a7a8a; font-size:0.75rem; margin-top:4px;"></small>
+        </div>
+
+        <div class="input-group">
+          <label>Jogos por participante *</label>
+          <input type="number" id="novo-qtd-jogos" class="input-control" required value="1" min="1" max="5"
+                 oninput="window.atualizarValorSugerido()" onchange="window.atualizarValorSugerido()">
+        </div>
+
+        <div class="input-group">
+          <label>Número do concurso</label>
+          <input type="text" id="novo-concurso" class="input-control" placeholder="Ex: 2700">
+        </div>
+
+        <div class="input-group full-width">
+          <label>Senha do bolão *</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="novo-senha" class="input-control" required placeholder="Senha de acesso"
+                   oninput="window.verificarSenhaLocal()" style="flex:1;">
+            <button type="button" class="btn-secondary" onclick="window.gerarNovaSenhaUnica()"
+                    title="Gerar nova senha automática">
+              <i class="fas fa-sync"></i>
+            </button>
+          </div>
+          <small id="senha-status" style="color:#6a7a8a; font-size:0.75rem; margin-top:4px;"></small>
+        </div>
+
+        <div class="input-group">
+          <label>Data do sorteio</label>
+          <input type="date" id="novo-data-sorteio" class="input-control">
+        </div>
+
+        <div class="input-group">
+          <label>Hora do sorteio</label>
+          <input type="time" id="novo-hora-sorteio" class="input-control" value="20:00">
+        </div>
+
+        <div class="input-group full-width">
+          <label>Prazo para pagamento *</label>
+          <input type="datetime-local" id="novo-prazo" class="input-control" required>
+          <small style="color:#6a7a8a; font-size:0.78rem; margin-top:4px;">
+            Após este prazo, participantes sem pagamento serão bloqueados automaticamente.
+          </small>
+        </div>
+
+        <!-- ✅ NOVO BLOCO: Pagamento via Pix -->
+        <div class="form-section-title full-width">
+          <i class="fas fa-qrcode"></i> Pagamento via Pix <small>(opcional)</small>
+        </div>
+
+        <div class="input-group">
+          <label>Chave Pix</label>
+          <input type="text" id="novo-pix-chave" class="input-control" placeholder="CPF, e-mail, telefone ou aleatória">
+        </div>
+
+        <div class="input-group">
+          <label>Nome do favorecido</label>
+          <input type="text" id="novo-pix-nome" class="input-control" placeholder="Nome de quem recebe">
+        </div>
+
+        <div class="input-group full-width">
+          <label>Banco</label>
+          <input type="text" id="novo-pix-banco" class="input-control" placeholder="Ex: Nubank, Itaú, Caixa...">
+        </div>
+
+        <!-- ✅ NOVO: Comprovante da aposta -->
+        <div class="form-section-title full-width">
+          <i class="fas fa-receipt"></i> Comprovante da aposta <small>(opcional)</small>
+        </div>
+
+        <div class="input-group full-width">
+          <label>Link do comprovante (Google Drive)</label>
+          <input type="url" id="novo-comprovante-url" class="input-control"
+                 placeholder="https://drive.google.com/file/d/.../view">
+          <small style="color:#6a7a8a; font-size:0.78rem; margin-top:4px;">
+            📎 Cole o link do comprovante na pasta do Drive (compartilhada com "Qualquer pessoa com o link").
+            Será exibido aos participantes após o pagamento.
+          </small>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn-secondary" onclick="document.getElementById('modal-criar').classList.remove('active')">
+          <i class="fas fa-times"></i> Cancelar
+        </button>
+        <button type="submit" class="btn-primary">
+          <i class="fas fa-save"></i> Criar Bolão
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+<div id="global-loader" aria-hidden="true">
+  <div class="loader"></div>
+  <div class="loader-texto" id="loader-texto">Carregando...</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="module" src="script_painel.js"></script>
+</body>
+</html>

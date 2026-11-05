@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bolão — GB Campos</title>
+<link rel="icon" type="image/png" href="imagem/logo-192.png">
+<link rel="apple-touch-icon" href="imagem/logo-192.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e3a8a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bolão UPA">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=3.4">
+</head>
+<body class="app-page">
+
+<nav class="navbar">
+  <div class="nav-content">
+    <a href="painel.html" class="nav-btn"><i class="fas fa-arrow-left"></i> Voltar</a>
+    <div class="brand" id="brand-bolao"><i class="fas fa-dice"></i> Bolão</div>
+    <div class="nav-user">
+      <span id="user-email-display" class="user-email"></span>
+      <span id="user-role-badge" class="role-badge"></span>
+      <button class="nav-btn nav-btn-danger" id="btn-logout" title="Sair">
+        <i class="fas fa-sign-out-alt"></i>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div class="container" id="bolao-container">
+    <p class="loading-text"><i class="fas fa-spinner fa-spin"></i> Carregando bolão...</p>
+  </div>
+</main>
+
+<footer class="painel-footer no-print">
+  <span>Desenvolvido por:</span>
+  <a href="https://wa.me/qr/7UJXOZI2AEMBL1" target="_blank" rel="noopener noreferrer"
+     aria-label="Fale com Tech GB pelo WhatsApp" class="painel-footer-link">
+    <img src="imagem/logo1-192.png" alt="Tech GB" class="footer-logo" onerror="this.style.display='none'">
+    <span class="footer-nome">Tech GB</span>
+    <i class="fab fa-whatsapp" aria-hidden="true"></i>
+  </a>
+</footer>
+
+<div id="toast-container" class="toast-container"></div>
+
+<div id="global-loader" aria-hidden="true">
+  <div class="loader"></div>
+  <div class="loader-texto" id="loader-texto">Carregando...</div>
+</div>
+
+<!-- MODAL: Opções do PDF -->
+<div id="modal-pdf-opcoes" class="modal-overlay">
+  <div class="modal-box modal-lg">
+    <h3><i class="fas fa-file-pdf"></i> Opções do PDF</h3>
+    <p style="color:#666; font-size:0.88rem; margin-bottom:20px;">
+      Escolha o tamanho da fonte, orientação e filtro.
+    </p>
+
+    <div class="pdf-opt-group">
+      <label class="pdf-opt-label"><i class="fas fa-font"></i> Tamanho da Fonte</label>
+      <div class="pdf-opt-radios">
+        <label class="pdf-opt-radio">
+          <input type="radio" name="pdf-fonte" value="10" checked>
+          <span><strong>Padrão</strong><small>10pt</small></span>
+        </label>
+        <label class="pdf-opt-radio">
+          <input type="radio" name="pdf-fonte" value="9">
+          <span><strong>Pequena</strong><small>9pt</small></span>
+        </label>
+        <label class="pdf-opt-radio">
+          <input type="radio" name="pdf-fonte" value="8">
+          <span><strong>Menor</strong><small>8pt</small></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="pdf-opt-group">
+      <label class="pdf-opt-label"><i class="fas fa-file"></i> Orientação</label>
+      <div class="pdf-opt-radios">
+        <label class="pdf-opt-radio">
+          <input type="radio" name="pdf-orient" value="portrait" checked>
+          <span><strong>Retrato</strong><small>Vertical</small></span>
+        </label>
+        <label class="pdf-opt-radio">
+          <input type="radio" name="pdf-orient" value="landscape">
+          <span><strong>Paisagem</strong><small>Horizontal</small></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="pdf-opt-group">
+      <label class="pdf-opt-label"><i class="fas fa-filter"></i> Filtrar participantes</label>
+      <div class="pdf-opt-radios">
+        <label class="pdf-opt-radio">
+          <input type="radio" name="pdf-filtro" value="todos" checked>
+          <span><strong>Todos</strong><small>Pagos + Pendentes</small></span>
+        </label>
+        <label class="pdf-opt-radio">
+          <input type="radio" name="pdf-filtro" value="pago">
+          <span><strong>Apenas pagos</strong><small>Confirmados</small></span>
+        </label>
+        <label class="pdf-opt-radio">
+          <input type="radio" name="pdf-filtro" value="pendente">
+          <span><strong>Apenas pendentes</strong><small>Não confirmados</small></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary"
+              onclick="document.getElementById('modal-pdf-opcoes').classList.remove('active')">
+        <i class="fas fa-times"></i> Cancelar
+      </button>
+      <button type="button" class="btn-primary" onclick="
+        const f = parseInt(document.querySelector('input[name=pdf-fonte]:checked').value);
+        const o = document.querySelector('input[name=pdf-orient]:checked').value;
+        const pdfFiltro = document.querySelector('input[name=pdf-filtro]:checked').value;
+        document.getElementById('modal-pdf-opcoes').classList.remove('active');
+        window.gerarPdfBolao(f, o, pdfFiltro);
+      ">
+        <i class="fas fa-download"></i> Gerar PDF
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Filtro do Excel -->
+<div id="modal-excel-filtro" class="modal-overlay">
+  <div class="modal-box modal-lg">
+    <h3><i class="fas fa-file-excel"></i> Exportar Excel</h3>
+    <p style="color:#666; font-size:0.88rem; margin-bottom:20px;">
+      Escolha quais participantes incluir na planilha.
+    </p>
+
+    <div class="pdf-opt-group">
+      <label class="pdf-opt-label"><i class="fas fa-filter"></i> Filtrar participantes</label>
+      <div class="pdf-opt-radios">
+        <label class="pdf-opt-radio">
+          <input type="radio" name="excel-filtro" value="todos" checked>
+          <span><strong>Todos</strong><small>Pagos + Pendentes</small></span>
+        </label>
+        <label class="pdf-opt-radio">
+          <input type="radio" name="excel-filtro" value="pago">
+          <span><strong>Apenas pagos</strong><small>Confirmados</small></span>
+        </label>
+        <label class="pdf-opt-radio">
+          <input type="radio" name="excel-filtro" value="pendente">
+          <span><strong>Apenas pendentes</strong><small>Não confirmados</small></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary"
+              onclick="document.getElementById('modal-excel-filtro').classList.remove('active')">
+        <i class="fas fa-times"></i> Cancelar
+      </button>
+      <button type="button" class="btn-primary" onclick="
+        const excelFiltro = document.querySelector('input[name=excel-filtro]:checked').value;
+        document.getElementById('modal-excel-filtro').classList.remove('active');
+        window.exportarExcelBolao(excelFiltro);
+      ">
+        <i class="fas fa-download"></i> Exportar
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="module" src="script_bolao.js?v=3.4"></script>
+</body>
+</html>

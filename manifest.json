@@ -3,9 +3,16 @@
   "name": "Bolão UPA Campos dos Goytacazes",
   "icons": [
     {
-      "src": "https://via.placeholder.com/192",
+      "src": "imagem/logo-192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "imagem/logo-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
     }
   ],
   "start_url": "/painel.html",

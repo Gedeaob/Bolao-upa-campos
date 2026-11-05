@@ -1,7 +1,8 @@
 import {
   auth, onAuthStateChanged, signOut,
-  ADMIN_EMAILS, MODALIDADES, apiRequest, apiRequestCached, invalidarCacheApi,
-  toast, fmtRS, fmtData, fmtDataHora, escapeHtml
+  ADMIN_EMAILS, MODALIDADES, apiRequest, invalidarCacheApi,
+  toast, fmtRS, fmtData, fmtDataHora, escapeHtml, valorPorExtenso, estimarPremios,
+  horaHHmm                                       // ⬅️ NOVO
 } from "./firebase-config.js";
 
 const params      = new URLSearchParams(window.location.search);
@@ -15,6 +16,9 @@ let participantes = [];
 let numerosSorteados = '';
 let minhaParticipacao = null;
 let jogosSelecionados = [];
+let __nomeCadastrado = '';
+let __combosUsadas   = new Set();
+let __countdownInterval = null;
 
 // ============================================================
 onAuthStateChanged(auth, async (user) => {
@@ -31,22 +35,17 @@ onAuthStateChanged(auth, async (user) => {
 
 document.getElementById('btn-logout')?.addEventListener('click', async () => {
   if (!confirm('Sair?')) return;
+  if (__countdownInterval) { clearInterval(__countdownInterval); __countdownInterval = null; }
   await signOut(auth); sessionStorage.clear();
   window.location.href = 'index.html';
 });
 
 // ============================================================
-// 🎯 CARREGAR BOLÃO — a correção principal está aqui
-// ============================================================
 async function carregarBolao() {
   const container = document.getElementById('bolao-container');
   try {
-    // ⬇️⬇️⬇️ A CHAVE DA CORREÇÃO: envia a senha no payload
     const data = await apiRequest('obterBolao', {
-      email: userEmail,
-      isAdmin,
-      id: bolaoId,
-      senha: senhaInicial          // <-- NOVO
+      email: userEmail, isAdmin, id: bolaoId, senha: senhaInicial
     });
 
     if (data.status === 'blocked') {
@@ -57,30 +56,37 @@ async function carregarBolao() {
     bolaoAtual       = data.bolao;
     participantes    = data.participantes || [];
     numerosSorteados = data.numeros_sorteados || '';
-    minhaParticipacao = bolaoAtual.minha_participacao;
+        minhaParticipacao = bolaoAtual.minha_participacao;
+    __nomeCadastrado = data.nome_cadastrado || '';
 
     document.getElementById('brand-bolao').innerHTML =
       `<i class="fas fa-dice"></i> ${escapeHtml(bolaoAtual.nome)}`;
 
-    // Se NÃO é participante e NÃO é admin → mostra tela de "Entrar no bolão"
-    // (o backend deve retornar isso em vez de lançar erro)
+    // ✅ DEFESA: aplica classes no <body> para o CSS controlar visibilidade
+    const isPago = Boolean(minhaParticipacao)
+      && String(minhaParticipacao.status_pagamento || '').toLowerCase() === 'pago';
+    const podeVerTudoReal = Boolean(isAdmin) || isPago;
+
+    document.body.classList.toggle('is-admin-bolao', isAdmin);
+    document.body.classList.toggle('is-pago-bolao', isPago);
+    document.body.classList.toggle('can-see-all', podeVerTudoReal);
+
     if (!minhaParticipacao && !isAdmin) {
       container.innerHTML = renderEntrarBolao();
       bindEntrarBolao();
       return;
     }
 
-    // Se é participante e ainda não escolheu os jogos → escolher números
     if (minhaParticipacao
         && minhaParticipacao.status_pagamento !== 'pago'
         && minhaParticipacao.ativo
         && jogosDeMinhaParticipacao().length === 0) {
+      await carregarCombinacoesUsadas();          // ⬅️ NOVO
       container.innerHTML = renderEscolherNumeros();
       bindEscolherNumeros();
       return;
     }
 
-    // Tela completa
     container.innerHTML = renderTelaCompleta();
     bindTelaCompleta();
 
@@ -100,8 +106,18 @@ function jogosDeMinhaParticipacao() {
   return p?.jogos || [];
 }
 
-// ============================================================
-// ⛔ BLOQUEADO
+async function carregarCombinacoesUsadas() {
+  try {
+    const r = await apiRequest('listarCombinacoesUsadas', {
+      bolaoId, email: userEmail
+    });
+    __combosUsadas = new Set(r.combinacoes || []);
+  } catch (e) {
+    console.warn('[combos] erro ao carregar:', e);
+    __combosUsadas = new Set();
+  }
+}
+
 // ============================================================
 function renderBloqueado(msg, motivo) {
   return `
@@ -121,9 +137,9 @@ function renderBloqueado(msg, motivo) {
 }
 
 // ============================================================
-// 🚪 ENTRAR NO BOLÃO (nome + senha)
-// ============================================================
 function renderEntrarBolao() {
+  const nomePre = __nomeCadastrado || '';
+  const readonly = nomePre ? 'readonly' : '';
   return `
     <div class="card">
       <h2><i class="fas fa-sign-in-alt"></i> Entrar no bolão</h2>
@@ -133,9 +149,12 @@ function renderEntrarBolao() {
       <div class="form-grid">
         <div class="input-group full-width">
           <label>Seu nome completo *</label>
-          <input type="text" id="entrar-nome" class="input-control" placeholder="Nome completo" required>
+          <input type="text" id="entrar-nome" class="input-control" placeholder="Nome completo"
+                 value="${escapeHtml(nomePre)}" ${readonly} required>
           <small style="color:#6a7a8a; font-size:0.78rem; margin-top:4px;">
-            ⚠️ Este nome será cadastrado uma única vez e ficará visível para todos os participantes.
+            ${nomePre
+              ? '✅ Nome já cadastrado anteriormente (não editável).'
+              : '⚠️ Este nome será cadastrado uma única vez e ficará visível para todos os participantes.'}
           </small>
         </div>
         <div class="input-group full-width">
@@ -157,18 +176,12 @@ function bindEntrarBolao() {
     const senha = document.getElementById('entrar-senha').value;
     if (!nome)  { toast('Informe seu nome.', 'warning'); return; }
     if (!senha) { toast('Informe a senha.', 'warning'); return; }
-
     try {
-      await apiRequest('entrarNoBolao', {
-        email: userEmail, isAdmin, bolaoId, nome, senha
-      });
+      await apiRequest('entrarNoBolao', { email: userEmail, isAdmin, bolaoId, nome, senha });
       toast('Você entrou no bolão!', 'success');
       invalidarCacheApi('obterBolao');
-      // Recarrega mantendo a senha para que o backend não peça novamente
       window.location.href = `bolao.html?id=${encodeURIComponent(bolaoId)}&senha=${encodeURIComponent(senha)}`;
-    } catch (e) {
-      toast(e.message, 'error');
-    }
+    } catch (e) { toast(e.message, 'error'); }
   });
 }
 
@@ -177,6 +190,7 @@ function bindEntrarBolao() {
 // ============================================================
 function renderEscolherNumeros() {
   const modal  = MODALIDADES[bolaoAtual.modalidade];
+  const qtdDezenas = Number(bolaoAtual.qtd_dezenas) || modal.qtd;
   const qtdJogos = bolaoAtual.qtd_jogos || 1;
   jogosSelecionados = Array.from({ length: qtdJogos }, () => []);
 
@@ -186,12 +200,13 @@ function renderEscolherNumeros() {
       <div class="info-box">
         <i class="fas fa-info-circle"></i>
         Modalidade: <strong>${escapeHtml(bolaoAtual.modalidade)}</strong> ·
-        Escolha <strong>${modal.qtd} números</strong> por jogo
+        Escolha <strong>${qtdDezenas} dezenas</strong> por jogo
         (${modal.min} a ${modal.max}) ·
         <strong>${qtdJogos}</strong> jogo${qtdJogos > 1 ? 's' : ''}
       </div>
       <div id="jogos-container">
-        ${Array.from({ length: qtdJogos }, (_, i) => renderJogoBlock(i, modal)).join('')}
+        ${Array.from({ length: qtdJogos }, (_, i) =>
+          renderJogoBlock(i, { ...modal, qtd: qtdDezenas })).join('')}
       </div>
       <div class="form-actions">
         <button class="btn-secondary" id="btn-voltar-sem-salvar">
@@ -201,7 +216,10 @@ function renderEscolherNumeros() {
           <i class="fas fa-save"></i> Salvar jogos
         </button>
       </div>
-    </div>`;
+    </div>
+
+    ${renderPixCard('Escolha seus números e pague via Pix logo abaixo.')}
+  `;
 }
 
 function renderJogoBlock(idx, modal) {
@@ -227,57 +245,129 @@ function renderJogoBlock(idx, modal) {
     </div>`;
 }
 
+// ============================================================
+// 🔧 FIX CRÍTICO: handler dos .numero-btn restaurado
+// ============================================================
 function bindEscolherNumeros() {
+  // ✅ Seleção manual
   document.querySelectorAll('.numero-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       const j = Number(btn.dataset.jogo);
       const n = Number(btn.dataset.num);
       const arr = jogosSelecionados[j];
       const i = arr.indexOf(n);
-      if (i >= 0) { arr.splice(i, 1); btn.classList.remove('selected'); }
-      else {
+      if (i >= 0) {
+        arr.splice(i, 1);
+        btn.classList.remove('selected');
+      } else {
         const modal = MODALIDADES[bolaoAtual.modalidade];
-        if (arr.length >= modal.qtd) { toast(`Máximo de ${modal.qtd} números.`, 'warning'); return; }
-        arr.push(n); btn.classList.add('selected');
+        const qtdDezenas = Number(bolaoAtual.qtd_dezenas) || modal.qtd;
+        if (arr.length >= qtdDezenas) {
+          toast(`Máximo de ${qtdDezenas} dezenas.`, 'warning'); return;
+        }
+        arr.push(n);
+        btn.classList.add('selected');
       }
       atualizarContador(j);
     });
   });
 
+  // ✅ Preenchimento automático — evita combos já usadas
+  // ✅ Preenchimento automático — PRESERVA números já escolhidos
   document.querySelectorAll('.btn-auto').forEach(btn => {
     btn.addEventListener('click', () => {
       const j = Number(btn.dataset.jogo);
       const modal = MODALIDADES[bolaoAtual.modalidade];
+      const qtdDezenas = Number(bolaoAtual.qtd_dezenas) || modal.qtd;
       const arr = jogosSelecionados[j];
-      const usados = new Set(arr);
-      while (arr.length < modal.qtd) {
-        const n = modal.min + Math.floor(Math.random() * (modal.max - modal.min + 1));
-        if (!usados.has(n)) { usados.add(n); arr.push(n); }
+
+      // ✅ Preserva o que o usuário já escolheu
+      const manuais = arr.slice();
+
+      if (manuais.length >= qtdDezenas) {
+        toast('Você já escolheu todos os números deste jogo.', 'info');
+        return;
       }
-      arr.sort((a, b) => a - b);
-      syncJogoUI(j); atualizarContador(j);
+
+      // Tenta preencher os vazios evitando combinações já usadas por outros
+      let tentativas = 0;
+      let combo = '';
+      do {
+        arr.length = 0;
+        arr.push(...manuais);                         // devolve os manuais
+        const usados = new Set(arr);
+        while (arr.length < qtdDezenas) {              // completa o restante
+          const n = modal.min + Math.floor(Math.random() * (modal.max - modal.min + 1));
+          if (!usados.has(n)) { usados.add(n); arr.push(n); }
+        }
+        arr.sort((a, b) => a - b);
+        combo = arr.join(',');
+        tentativas++;
+      } while (__combosUsadas.has(combo) && tentativas < 100);
+
+      if (tentativas >= 100 && __combosUsadas.has(combo)) {
+        toast('Não foi possível evitar combinação repetida. Revise os números.', 'warning');
+      } else if (manuais.length > 0) {
+        toast(
+          `✅ ${qtdDezenas - manuais.length} número(s) preenchido(s) ` +
+          `(mantendo os ${manuais.length} que você já tinha escolhido).`,
+          'success'
+        );
+      }
+
+      syncJogoUI(j);
+      atualizarContador(j);
     });
   });
 
+  // ✅ Limpar
   document.querySelectorAll('.btn-limpar').forEach(btn => {
     btn.addEventListener('click', () => {
       const j = Number(btn.dataset.jogo);
       jogosSelecionados[j] = [];
-      syncJogoUI(j); atualizarContador(j);
+      syncJogoUI(j);
+      atualizarContador(j);
     });
   });
 
+  // Cancelar
   document.getElementById('btn-voltar-sem-salvar')?.addEventListener('click', () => {
     window.location.href = 'painel.html';
   });
 
+  // Salvar
   document.getElementById('btn-salvar-jogos')?.addEventListener('click', async () => {
     const modal = MODALIDADES[bolaoAtual.modalidade];
+    const qtdDezenas = Number(bolaoAtual.qtd_dezenas) || modal.qtd;
+
+    // Validação de quantidade
     for (let i = 0; i < jogosSelecionados.length; i++) {
-      if (jogosSelecionados[i].length !== modal.qtd) {
-        toast(`Jogo ${i + 1}: escolha ${modal.qtd} números.`, 'warning'); return;
+      if (jogosSelecionados[i].length !== qtdDezenas) {
+        toast(`Jogo ${i + 1}: escolha ${qtdDezenas} dezenas.`, 'warning'); return;
       }
     }
+
+    // Validação: combos iguais ENTRE meus próprios jogos
+    const seen = new Set();
+    for (let i = 0; i < jogosSelecionados.length; i++) {
+      const combo = jogosSelecionados[i].slice().sort((a,b) => a-b).join(',');
+      if (seen.has(combo)) {
+        toast(`Jogo ${i + 1}: tem os mesmos números que outro jogo seu.`, 'warning'); return;
+      }
+      seen.add(combo);
+    }
+
+    // Validação: combos iguais com OUTROS participantes
+    for (let i = 0; i < jogosSelecionados.length; i++) {
+      const combo = jogosSelecionados[i].slice().sort((a,b) => a-b).join(',');
+      if (__combosUsadas.has(combo)) {
+        toast(`Jogo ${i + 1}: outro participante já escolheu esta mesma combinação. Escolha outra.`, 'warning');
+        return;
+      }
+    }
+
     try {
       await apiRequest('salvarJogos', {
         email: userEmail, bolaoId,
@@ -298,8 +388,121 @@ function syncJogoUI(j) {
 }
 function atualizarContador(j) {
   const modal = MODALIDADES[bolaoAtual.modalidade];
+  const qtdDezenas = Number(bolaoAtual.qtd_dezenas) || modal.qtd;
   const el = document.getElementById(`contador-${j}`);
-  if (el) el.textContent = `${jogosSelecionados[j].length} / ${modal.qtd}`;
+  if (el) el.textContent = `${jogosSelecionados[j].length} / ${qtdDezenas}`;
+}
+
+// ============================================================
+// 💰 CARD DE PIX REUTILIZÁVEL
+// ============================================================
+function renderPixCard(mensagemExtra = '') {
+  if (!bolaoAtual.pix_chave) return '';
+  return `
+    <div class="card pix-card">
+      <h2><i class="fas fa-qrcode"></i> Pagamento via Pix</h2>
+      ${mensagemExtra ? `<p class="pix-msg">${escapeHtml(mensagemExtra)}</p>` : ''}
+
+      <div class="pix-info-grid">
+        <div class="pix-row">
+          <span class="pix-label"><i class="fas fa-key"></i> Chave Pix</span>
+          <div class="pix-copy-row">
+            <code id="pix-chave-valor">${escapeHtml(bolaoAtual.pix_chave)}</code>
+            <button class="btn-primary btn-sm" onclick="window.copiarPix()" title="Copiar chave Pix">
+              <i class="fas fa-copy"></i> Copiar
+            </button>
+          </div>
+        </div>
+        ${bolaoAtual.pix_nome ? `
+          <div class="pix-row">
+            <span class="pix-label"><i class="fas fa-user"></i> Favorecido</span>
+            <span class="pix-value">${escapeHtml(bolaoAtual.pix_nome)}</span>
+          </div>
+        ` : ''}
+        ${bolaoAtual.pix_banco ? `
+          <div class="pix-row">
+            <span class="pix-label"><i class="fas fa-university"></i> Banco</span>
+            <span class="pix-value">${escapeHtml(bolaoAtual.pix_banco)}</span>
+          </div>
+        ` : ''}
+        <div class="pix-row pix-row-valor">
+          <span class="pix-label"><i class="fas fa-money-bill-wave"></i> Valor</span>
+          <span class="pix-value pix-valor">R$ ${fmtRS(bolaoAtual.valor_participacao)}</span>
+        </div>
+      </div>
+
+      <p class="pix-aviso">
+        <i class="fas fa-info-circle"></i>
+        Após o pagamento, envie o comprovante ao administrador ou no Grupo do whatsapp para liberar o acesso completo.
+      </p>
+    </div>`;
+}
+
+window.copiarPix = async function() {
+  const chave = bolaoAtual?.pix_chave;
+  if (!chave) return;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(chave);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = chave; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); ta.remove();
+    }
+    toast('✅ Chave Pix copiada!', 'success');
+  } catch (e) {
+    toast('Não foi possível copiar. Copie manualmente.', 'warning');
+  }
+};
+
+// ============================================================
+// 📊 ESTIMATIVA POR FAIXA DE ACERTOS
+// ============================================================
+function renderEstimativaPremios() {
+  if (!bolaoAtual.valor_premio || bolaoAtual.valor_premio <= 0) return '';
+  const faixas = estimarPremios(bolaoAtual.modalidade, bolaoAtual.valor_premio);
+  if (faixas.length === 0) return '';
+
+  return `
+    <div class="card estimativa-card">
+      <h2><i class="fas fa-chart-line"></i> Estimativa de prêmios por faixa</h2>
+      <p class="estimativa-aviso">
+        ⚠️ Valores <strong>estimados</strong> com base no prêmio total de
+        <strong>R$ ${fmtRS(bolaoAtual.valor_premio)}</strong>.
+        Se houver ganhadores fora do bolão, o valor real pode diferir — consulte o
+        <a href="https://loterias.caixa.gov.br" target="_blank" rel="noopener">resultado oficial da CAIXA</a>.
+      </p>
+      <div class="estimativa-grid">
+        ${faixas.map(f => `
+          <div class="estimativa-item">
+            <div class="estimativa-acertos">${f.acertos} acerto${f.acertos > 1 ? 's' : ''}</div>
+            <div class="estimativa-valor">R$ ${fmtRS(f.valor)}</div>
+            <div class="estimativa-extenso">${escapeHtml(valorPorExtenso(f.valor))}</div>
+            <div class="estimativa-perc">${(f.percentual * 100).toFixed(0)}% do prêmio</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+}
+
+// ============================================================
+// 🧾 COMPROVANTE
+// ============================================================
+function renderComprovante() {
+  if (!bolaoAtual.comprovante_url) return '';
+  return `
+    <div class="card comprovante-card" data-requires="pago">
+      <h2><i class="fas fa-receipt"></i> Comprovante da aposta</h2>
+      <p style="color:#6a7a8a;font-size:0.88rem;margin-bottom:14px;">
+        O administrador disponibilizou o comprovante oficial da aposta na loteria.
+      </p>
+      <a href="${escapeHtml(bolaoAtual.comprovante_url)}"
+         target="_blank" rel="noopener noreferrer"
+         class="btn-primary">
+        <i class="fas fa-external-link-alt"></i> Visualizar / Baixar comprovante
+      </a>
+    </div>`;
 }
 
 // ============================================================
@@ -314,48 +517,88 @@ function renderTelaCompleta() {
         : '<span class="tag tag-warning">PAGAMENTO PENDENTE</span>')
     : '<span class="tag tag-info">ADMIN</span>';
 
-  const podeVerTudo = isAdmin || minhaParticipacao?.status_pagamento === 'pago';
+  // ⬇️ podeVerTudo já cobre isAdmin
+    const isPago = Boolean(minhaParticipacao)
+    && String(minhaParticipacao.status_pagamento || '').toLowerCase() === 'pago';
+  const podeVerTudo = Boolean(isAdmin) || isPago;
   const podeEditarJogos = minhaParticipacao
     && minhaParticipacao.status_pagamento !== 'pago'
     && minhaParticipacao.ativo;
 
+  const temSorteio = bolaoAtual.data_sorteio;
+  const premioExtenso = bolaoAtual.valor_premio > 0 ? valorPorExtenso(bolaoAtual.valor_premio) : '';
+
   return `
     <div class="bolao-header-card">
-      <div>
+      <div class="bolao-header-info">
         <h1>${escapeHtml(bolaoAtual.nome)}</h1>
+
+        ${bolaoAtual.valor_premio > 0 ? `
+          <div class="premio-destaque">
+            <div class="premio-icon"><i class="fas fa-trophy"></i></div>
+            <div class="premio-text">
+              <span class="premio-label">PRÊMIO ESTIMADO</span>
+              <span class="premio-valor">R$ ${fmtRS(bolaoAtual.valor_premio)}</span>
+              <span class="premio-extenso">${escapeHtml(premioExtenso)}</span>
+            </div>
+          </div>
+        ` : ''}
+
         <div class="bolao-meta">
           <span class="tag tag-info">${escapeHtml(bolaoAtual.modalidade)}</span>
+          ${bolaoAtual.qtd_dezenas ? `<span class="tag">${bolaoAtual.qtd_dezenas} dezenas</span>` : ''}
           ${bolaoAtual.concurso ? `<span class="tag">Conc. ${escapeHtml(bolaoAtual.concurso)}</span>` : ''}
           <span class="tag tag-purple">${bolaoAtual.pagos} / ${bolaoAtual.max_participantes} pagos</span>
           ${statusMinha}
         </div>
         <div class="bolao-detalhes">
-          <span><i class="fas fa-calendar"></i> Sorteio: ${bolaoAtual.data_sorteio ? fmtData(bolaoAtual.data_sorteio) : '-'} ${bolaoAtual.hora_sorteio || ''}</span>
+          <span><i class="fas fa-calendar"></i> Sorteio: ${bolaoAtual.data_sorteio ? fmtData(bolaoAtual.data_sorteio) : '-'} ${horaHHmm(bolaoAtual.hora_sorteio) || ''}</span>
           <span><i class="fas fa-hourglass-half"></i> Prazo: ${bolaoAtual.prazo_pagamento ? fmtDataHora(bolaoAtual.prazo_pagamento) : '-'}</span>
           <span><i class="fas fa-ticket-alt"></i> ${bolaoAtual.qtd_jogos} jogo(s)</span>
           <span><i class="fas fa-money-bill-wave"></i> R$ ${fmtRS(bolaoAtual.valor_participacao)}</span>
         </div>
       </div>
 
-      <div class="bolao-actions-top">
-        ${isAdmin && !minhaParticipacao ? `
-          <button class="btn-primary btn-sm" id="btn-admin-participar">
-            <i class="fas fa-user-plus"></i> Participar também
-          </button>
+      <div class="bolao-header-side">
+        ${temSorteio ? `
+          <div class="countdown-card">
+            <div class="countdown-label"><i class="fas fa-hourglass-half"></i> Sorteio em</div>
+            <div class="countdown-timer" id="countdown-timer">--</div>
+            <div class="countdown-date">${fmtData(bolaoAtual.data_sorteio)}${bolaoAtual.hora_sorteio ? ' às ' + horaHHmm(bolaoAtual.hora_sorteio) : ''}</div>
+          </div>
         ` : ''}
-        <button class="btn-secondary btn-sm" id="btn-export-pdf">
-          <i class="fas fa-file-pdf"></i> PDF
-        </button>
-        <button class="btn-secondary btn-sm" id="btn-export-excel">
-          <i class="fas fa-file-excel"></i> Excel
-        </button>
+        <div class="bolao-actions-top">
+          ${isAdmin && !minhaParticipacao ? `
+            <button class="btn-primary btn-sm" id="btn-admin-participar">
+              <i class="fas fa-user-plus"></i> Participar também
+            </button>
+          ` : ''}
+          ${isAdmin ? `
+            <button class="btn-primary btn-sm" id="btn-export-lottery" title="PDF para registrar na lotérica">
+              <i class="fas fa-ticket-alt"></i> PDF Lotérica
+            </button>
+          ` : ''}
+            ${podeVerTudo ? `
+    <button class="btn-secondary btn-sm" id="btn-export-pdf" data-requires="pago">
+      <i class="fas fa-file-pdf"></i> PDF
+    </button>
+    <button class="btn-secondary btn-sm" id="btn-export-excel" data-requires="pago">
+      <i class="fas fa-file-excel"></i> Excel
+    </button>
+  ` : ''}
+        </div>
       </div>
     </div>
 
     ${renderAlertaStatus()}
+    ${minhaParticipacao && minhaParticipacao.status_pagamento !== 'pago' && bolaoAtual.pix_chave
+      ? renderPixCard('Sua participação ainda está pendente de pagamento. Use os dados abaixo:')
+      : ''}
+    ${podeVerTudo ? renderComprovante() : ''}                <!-- ✅ esconde p/ pendente -->
     ${meusJogos.length > 0 ? renderMeusJogos(meusJogos, podeEditarJogos) : ''}
-    ${podeVerTudo || isAdmin ? renderParticipantes() : renderAvisoPendente()}
-    ${numerosSorteados ? renderRanking() : ''}
+    ${renderEstimativaPremios()}
+    ${podeVerTudo ? renderParticipantes() : renderAvisoPendente()}
+    ${numerosSorteados && podeVerTudo ? renderRanking() : ''}
     ${numerosSorteados ? renderResultadoSorteio() : ''}
     ${isAdmin ? renderAdminPanel() : ''}
   `;
@@ -384,7 +627,6 @@ function renderAlertaStatus() {
 }
 
 function renderMeusJogos(jogos, podeEditar) {
-  const modal = MODALIDADES[bolaoAtual.modalidade];
   return `
     <div class="card">
       <div class="card-header-actions">
@@ -396,7 +638,7 @@ function renderMeusJogos(jogos, podeEditar) {
         ` : ''}
       </div>
       <div class="jogos-list">
-        ${jogos.map((j, i) => renderJogoView(j.numeros, i + 1, modal)).join('')}
+        ${jogos.map((j, i) => renderJogoView(j.numeros, i + 1)).join('')}
       </div>
     </div>`;
 }
@@ -471,13 +713,13 @@ function renderParticipantes() {
 }
 
 // ============================================================
-// 🏆 RANKING DE ACERTOS
+// 🏆 RANKING (mensagem "não deu nem água")
 // ============================================================
 function renderRanking() {
   const sorteados = numerosSorteados.split(',').map(s => Number(s.trim())).filter(n => !isNaN(n));
   if (sorteados.length === 0) return '';
 
-  const rankingPorMedico = {};
+  const ranking = {};
   participantes.forEach(p => {
     if (!p.ativo) return;
     let melhor = 0;
@@ -487,14 +729,10 @@ function renderRanking() {
       if (acertos > melhor) melhor = acertos;
     });
     const nome = p.nome || '(sem nome)';
-    if (!rankingPorMedico[nome] || melhor > rankingPorMedico[nome]) {
-      rankingPorMedico[nome] = melhor;
-    }
+    if (!ranking[nome] || melhor > ranking[nome]) ranking[nome] = melhor;
   });
 
-  const ordenado = Object.entries(rankingPorMedico)
-    .sort((a, b) => b[1] - a[1]);
-
+  const ordenado = Object.entries(ranking).sort((a, b) => b[1] - a[1]);
   const comAcerto = ordenado.filter(([, n]) => n > 0);
   const semAcerto = ordenado.filter(([, n]) => n === 0);
 
@@ -503,13 +741,7 @@ function renderRanking() {
       <h2><i class="fas fa-trophy"></i> Ranking de Acertos</h2>
       ${comAcerto.length > 0 ? `
         <table class="ranking-tabela">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Participante</th>
-              <th class="num">Acertos</th>
-            </tr>
-          </thead>
+          <thead><tr><th>#</th><th>Participante</th><th class="num">Acertos</th></tr></thead>
           <tbody>
             ${comAcerto.map(([nome, acertos], i) => `
               <tr class="${i === 0 ? 'ranking-primeiro' : ''}">
@@ -522,7 +754,7 @@ function renderRanking() {
       ` : ''}
       ${semAcerto.length > 0 ? `
         <div class="ranking-sem-acerto">
-          <p>😊 <strong>Participantes que não acertaram nenhum número:</strong> não desanimem, a próxima pode ser a sua!</p>
+          <p>💧 <strong>Esses não deram nem água!</strong> (0 acertos — mas o importante é participar 😄)</p>
           <div class="ranking-sem-acerto-lista">
             ${semAcerto.map(([nome]) => `<span class="tag">${escapeHtml(nome)}</span>`).join('')}
           </div>
@@ -602,7 +834,7 @@ function renderAdminPanel() {
       <div class="admin-tab-content" id="adm-resultado">
         <h3>Registrar resultado do sorteio</h3>
         <p style="color:#6a7a8a;margin-bottom:12px;">
-          Informe os números sorteados separados por vírgula.
+          Informe os <strong>${bolaoAtual.qtd_dezenas || MODALIDADES[bolaoAtual.modalidade].qtd} números</strong> sorteados, separados por vírgula.
           Modalidade: <strong>${escapeHtml(bolaoAtual.modalidade)}</strong>
         </p>
         <div class="input-group">
@@ -645,16 +877,13 @@ function bindTelaCompleta() {
     bindEscolherNumeros();
   });
 
-  // Admin também pode participar
   document.getElementById('btn-admin-participar')?.addEventListener('click', async () => {
     const nome = prompt('Digite seu nome completo para participar deste bolão:');
     if (!nome || !nome.trim()) return;
     try {
-      // Admin já tem a senha? Não precisamos dela — backend autoriza por isAdmin
       await apiRequest('entrarNoBolao', {
         email: userEmail, isAdmin: true, bolaoId,
-        nome: nome.trim().toUpperCase(),
-        senha: ''  // backend deve aceitar quando isAdmin === true
+        nome: nome.trim().toUpperCase(), senha: ''
       });
       toast('Você entrou no bolão!', 'success');
       invalidarCacheApi('obterBolao');
@@ -676,13 +905,21 @@ function bindTelaCompleta() {
   document.getElementById('btn-export-pdf')?.addEventListener('click', () => {
     window.abrirModalPdfBolao();
   });
-  document.getElementById('btn-export-excel')?.addEventListener('click', () => {
-    window.exportarExcelBolao();
+  document.getElementById('btn-export-lottery')?.addEventListener('click', () => {
+    window.gerarPdfLoterica();
   });
+  document.getElementById('btn-export-excel')?.addEventListener('click', () => {
+  const modal = document.getElementById('modal-excel-filtro');
+  if (modal) modal.classList.add('active');
+  else window.exportarExcelBolao('todos');   // fallback
+});
+
+  // ✅ Inicia countdown depois que o DOM está pronto
+  setTimeout(() => iniciarCountdownTimer(), 50);
 }
 
 // ============================================================
-// 📄 PDF (com opções de orientação, fonte, tamanho A4)
+// 📄 PDF / EXCEL (mantidos — só o texto do cabeçalho muda)
 // ============================================================
 window.abrirModalPdfBolao = function () {
   const modal = document.getElementById('modal-pdf-opcoes');
@@ -691,25 +928,37 @@ window.abrirModalPdfBolao = function () {
   modal.classList.add('active');
 };
 
-window.gerarPdfBolao = function (fonte = 10, orient = 'portrait') {
+window.gerarPdfBolao = function (fonte = 10, orient = 'portrait', filtro = 'todos') {
   if (!window.jspdf?.jsPDF) { toast('Biblioteca PDF não carregada.', 'error'); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF(orient === 'landscape' ? 'l' : 'p', 'mm', 'a4');
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 12;
 
-  // Cabeçalho
+  // Aplica filtro
+  const lista = participantes.filter(p => {
+    if (filtro === 'pago')     return p.status_pagamento === 'pago';
+    if (filtro === 'pendente') return p.status_pagamento !== 'pago' && p.ativo;
+    return true;
+  });
+
+  const filtroLabel = {
+    todos: 'Todos os participantes',
+    pago: 'Apenas pagos',
+    pendente: 'Apenas pendentes'
+  }[filtro] || 'Todos';
+
   doc.setFontSize(fonte + 5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 58, 138);
-  doc.text('BOLÃO UPA CAMPOS', pageW / 2, 18, { align: 'center' });
+  doc.text('BOLÃO GB CAMPOS', pageW / 2, 18, { align: 'center' });
   doc.setFontSize(fonte + 1);
   doc.setFont('helvetica', 'normal');
   doc.text(bolaoAtual.nome, pageW / 2, 25, { align: 'center' });
   doc.setFontSize(fonte - 1);
   doc.setTextColor(100);
   doc.text(
-    `${bolaoAtual.modalidade} · Conc. ${bolaoAtual.concurso || '-'} · ${bolaoAtual.pagos}/${bolaoAtual.max_participantes} pagos · Gerado em ${new Date().toLocaleString('pt-BR')}`,
+    `${bolaoAtual.modalidade} · Conc. ${bolaoAtual.concurso || '-'} · ${filtroLabel} · Gerado em ${new Date().toLocaleString('pt-BR')}`,
     pageW / 2, 30, { align: 'center' }
   );
   doc.setDrawColor(30, 58, 138);
@@ -717,8 +966,6 @@ window.gerarPdfBolao = function (fonte = 10, orient = 'portrait') {
   doc.line(margin, 33, pageW - margin, 33);
 
   let y = 39;
-
-  // Resultado (se houver)
   if (numerosSorteados) {
     doc.setFontSize(fonte + 1);
     doc.setFont('helvetica', 'bold');
@@ -732,17 +979,14 @@ window.gerarPdfBolao = function (fonte = 10, orient = 'portrait') {
     y += 8;
   }
 
-  // Tabela de participantes + jogos
   const body = [];
-  participantes.forEach(p => {
+  lista.forEach(p => {
     const nome = p.nome || '(sem nome)';
     const status = p.status_pagamento === 'pago' ? 'PAGO'
                  : !p.ativo ? 'BLOQUEADO' : 'PENDENTE';
     (p.jogos || []).forEach((j, i) => {
       const numeros = String(j.numeros).split(',').map(n => n.trim().padStart(2, '0')).join(' ');
-      const sorteados = numerosSorteados
-        ? numerosSorteados.split(',').map(s => Number(s.trim()))
-        : [];
+      const sorteados = numerosSorteados ? numerosSorteados.split(',').map(s => Number(s.trim())) : [];
       const acertos = sorteados.length
         ? String(j.numeros).split(',').filter(n => sorteados.includes(Number(n.trim()))).length
         : '-';
@@ -752,6 +996,11 @@ window.gerarPdfBolao = function (fonte = 10, orient = 'portrait') {
       body.push([nome, status, '-', 'Sem jogos', '-']);
     }
   });
+
+  if (body.length === 0) {
+    toast('Nenhum participante com este filtro.', 'warning');
+    return;
+  }
 
   doc.autoTable({
     startY: y,
@@ -770,7 +1019,6 @@ window.gerarPdfBolao = function (fonte = 10, orient = 'portrait') {
     margin: { left: margin, right: margin }
   });
 
-  // Rodapé
   const totalPages = doc.internal.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
@@ -779,31 +1027,37 @@ window.gerarPdfBolao = function (fonte = 10, orient = 'portrait') {
     doc.setTextColor(120);
     doc.text(`Página ${i} de ${totalPages}`, pageW - margin, doc.internal.pageSize.getHeight() - 5, { align: 'right' });
   }
-
-  doc.save(`bolao_${bolaoAtual.nome.replace(/\s+/g, '_')}_${bolaoAtual.concurso || ''}.pdf`);
+  doc.save(`bolao_${bolaoAtual.nome.replace(/\s+/g, '_')}_${filtro}_${bolaoAtual.concurso || ''}.pdf`);
 };
 
-// ============================================================
-// 📊 EXCEL
-// ============================================================
-window.exportarExcelBolao = function () {
+window.exportarExcelBolao = function (filtro = 'todos') {
   if (!window.XLSX) { toast('Biblioteca Excel não carregada.', 'error'); return; }
 
+  const lista = participantes.filter(p => {
+    if (filtro === 'pago')     return p.status_pagamento === 'pago';
+    if (filtro === 'pendente') return p.status_pagamento !== 'pago' && p.ativo;
+    return true;
+  });
+
+  if (lista.length === 0) {
+    toast('Nenhum participante com este filtro.', 'warning');
+    return;
+  }
+
+  const filtroLabel = {
+    todos: 'Todos', pago: 'Apenas pagos', pendente: 'Apenas pendentes'
+  }[filtro] || 'Todos';
+
   const aoa = [
-    ['BOLÃO UPA CAMPOS'],
+    ['BOLÃO GB CAMPOS'],
     [bolaoAtual.nome],
-    [bolaoAtual.modalidade, 'Conc. ' + (bolaoAtual.concurso || '-')],
+    [bolaoAtual.modalidade, 'Conc. ' + (bolaoAtual.concurso || '-'), 'Filtro: ' + filtroLabel],
     [],
     ['Participante', 'E-mail', 'Status', 'Jogo', 'Números', 'Acertos']
   ];
-
-  const sorteados = numerosSorteados
-    ? numerosSorteados.split(',').map(s => Number(s.trim()))
-    : [];
-
-  participantes.forEach(p => {
-    const status = p.status_pagamento === 'pago' ? 'PAGO'
-                 : !p.ativo ? 'BLOQUEADO' : 'PENDENTE';
+  const sorteados = numerosSorteados ? numerosSorteados.split(',').map(s => Number(s.trim())) : [];
+  lista.forEach(p => {
+    const status = p.status_pagamento === 'pago' ? 'PAGO' : !p.ativo ? 'BLOQUEADO' : 'PENDENTE';
     (p.jogos || []).forEach((j, i) => {
       const numeros = String(j.numeros).split(',').map(n => n.trim().padStart(2, '0')).join(' ');
       const acertos = sorteados.length
@@ -815,18 +1069,16 @@ window.exportarExcelBolao = function () {
       aoa.push([p.nome || '', p.email || '', status, '-', 'Sem jogos', '-']);
     }
   });
-
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols'] = [{ wch: 32 }, { wch: 28 }, { wch: 12 }, { wch: 8 }, { wch: 40 }, { wch: 10 }];
   XLSX.utils.book_append_sheet(wb, ws, bolaoAtual.nome.slice(0, 28) || 'Bolão');
-
-  XLSX.writeFile(wb, `bolao_${bolaoAtual.nome.replace(/\s+/g, '_')}.xlsx`);
+  XLSX.writeFile(wb, `bolao_${bolaoAtual.nome.replace(/\s+/g, '_')}_${filtro}.xlsx`);
   toast('Excel exportado!', 'success');
 };
 
 // ============================================================
-// AÇÕES ADMIN (globais)
+// AÇÕES ADMIN
 // ============================================================
 window.confirmarPagamento = async (id) => {
   if (!confirm('Confirmar pagamento deste participante?')) return;
@@ -837,7 +1089,6 @@ window.confirmarPagamento = async (id) => {
     await carregarBolao();
   } catch (e) { toast('Erro: ' + e.message, 'error'); }
 };
-
 window.bloquearParticipante = async (id) => {
   if (!confirm('Bloquear este participante?')) return;
   try {
@@ -847,7 +1098,6 @@ window.bloquearParticipante = async (id) => {
     await carregarBolao();
   } catch (e) { toast('Erro: ' + e.message, 'error'); }
 };
-
 window.reativarParticipante = async (id) => {
   if (!confirm('Reativar o acesso deste participante?')) return;
   try {
@@ -856,4 +1106,180 @@ window.reativarParticipante = async (id) => {
     invalidarCacheApi('obterBolao');
     await carregarBolao();
   } catch (e) { toast('Erro: ' + e.message, 'error'); }
+};
+
+// ============================================================
+// ⏱️ COUNTDOWN — versão robusta
+// ============================================================
+function iniciarCountdownTimer() {
+  if (__countdownInterval) {
+    clearInterval(__countdownInterval);
+    __countdownInterval = null;
+  }
+
+  const el = document.getElementById('countdown-timer');
+  if (!el) { console.warn('[countdown] #countdown-timer não encontrado'); return; }
+  if (!bolaoAtual?.data_sorteio) { console.warn('[countdown] data_sorteio vazio'); return; }
+
+  // Normaliza data (aceita "2025-12-15", "2025-12-15T00:00:00", "15/12/2025")
+  const dataRaw = String(bolaoAtual.data_sorteio).trim();
+  const horaNorm = horaHHmm(bolaoAtual.hora_sorteio) || '20:00';
+
+  let target = null;
+
+  // Tentativa 1: ISO
+  const iso = dataRaw.slice(0, 10) + 'T' + horaNorm + ':00';
+  target = new Date(iso);
+
+  // Tentativa 2: com barra (dd/MM/yyyy)
+  if (isNaN(target.getTime())) {
+    const m = dataRaw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) {
+      const [_, dd, mm, yyyy] = m;
+      target = new Date(`${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}T${horaNorm}:00`);
+    }
+  }
+
+  // Tentativa 3: parse direto
+  if (isNaN(target.getTime())) target = new Date(dataRaw);
+
+  if (isNaN(target.getTime())) {
+    console.error('[countdown] data inválida:', dataRaw, horaRaw);
+    el.innerHTML = '<span class="cd-expirado">Data do sorteio inválida</span>';
+    return;
+  }
+
+  console.log('[countdown] target:', target.toISOString());
+
+  function tick() {
+    const agora = new Date();
+    const diff = target - agora;
+    if (diff <= 0) {
+      el.innerHTML = '<span class="cd-expirado">🎯 Sorteio já realizado!</span>';
+      if (__countdownInterval) { clearInterval(__countdownInterval); __countdownInterval = null; }
+      return;
+    }
+    const dias  = Math.floor(diff / 86400000);
+    const horas = Math.floor((diff % 86400000) / 3600000);
+    const mins  = Math.floor((diff % 3600000) / 60000);
+    const segs  = Math.floor((diff % 60000) / 1000);
+    el.innerHTML = `
+      <span class="cd-block"><strong>${dias}</strong><small>dias</small></span>
+      <span class="cd-block"><strong>${String(horas).padStart(2,'0')}</strong><small>hrs</small></span>
+      <span class="cd-block"><strong>${String(mins).padStart(2,'0')}</strong><small>min</small></span>
+      <span class="cd-block"><strong>${String(segs).padStart(2,'0')}</strong><small>s</small></span>
+    `;
+  }
+  tick();
+  __countdownInterval = setInterval(tick, 1000);
+}
+
+// ============================================================
+// 🎟️ PDF PARA REGISTRAR NA LOTÉRICA
+// ============================================================
+window.gerarPdfLoterica = function () {
+  if (!window.jspdf?.jsPDF) { toast('Biblioteca PDF não carregada.', 'error'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 12;
+
+  const pagos = participantes
+    .filter(p => p.status_pagamento === 'pago' && p.ativo && (p.jogos || []).length > 0)
+    .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+
+  if (pagos.length === 0) {
+    toast('Nenhum participante pago com jogos.', 'warning'); return;
+  }
+
+  // Cabeçalho
+  doc.setFillColor(30, 58, 138);
+  doc.rect(0, 0, pageW, 22, 'F');
+  doc.setTextColor(255);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('BOLÃO GB CAMPOS', pageW / 2, 10, { align: 'center' });
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('COMPROVANTE PARA REGISTRO NA LOTÉRICA', pageW / 2, 17, { align: 'center' });
+
+  doc.setTextColor(30, 58, 138);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text(bolaoAtual.nome, margin, 30);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(100);
+  doc.text(
+    `${bolaoAtual.modalidade} · ${bolaoAtual.qtd_dezenas || MODALIDADES[bolaoAtual.modalidade].qtd} dezenas · Conc. ${bolaoAtual.concurso || '-'}`,
+    margin, 36
+  );
+  doc.text(
+    `${pagos.length} participante(s) pago(s) · Gerado em ${new Date().toLocaleString('pt-BR')}`,
+    margin, 41
+  );
+
+  let y = 48;
+
+  pagos.forEach((p, idx) => {
+    const numJogs = (p.jogos || []).length;
+    const alturaBloco = 16 + (numJogs * 22) + 8;
+
+    if (y + alturaBloco > pageH - 15) { doc.addPage(); y = 20; }
+
+    // Cabeçalho do participante
+    doc.setFillColor(240, 245, 250);
+    doc.rect(margin, y, pageW - margin * 2, 12, 'F');
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 58, 138);
+    doc.text(`${idx + 1}. ${p.nome || '(sem nome)'}`, margin + 4, y + 8);
+    y += 14;
+
+    // Jogos
+    (p.jogos || []).forEach((j, ji) => {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(80);
+      doc.text(`Jogo ${ji + 1}:`, margin + 4, y + 4);
+
+      const nums = String(j.numeros || '').split(',').map(n => Number(n.trim())).filter(n => !isNaN(n));
+      const boxSize = 15, gap = 3;
+      let xNum = margin + 4;
+      const yNum = y + 7;
+
+      nums.forEach(n => {
+        doc.setFillColor(30, 58, 138);
+        doc.roundedRect(xNum, yNum, boxSize, boxSize, 2, 2, 'F');
+        doc.setTextColor(255);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text(String(n).padStart(2, '0'), xNum + boxSize / 2, yNum + boxSize / 2 + 2, { align: 'center' });
+        xNum += boxSize + gap;
+      });
+      y += 22;
+    });
+
+    // Separador
+    doc.setDrawColor(200);
+    doc.setLineWidth(0.3);
+    doc.line(margin, y + 2, pageW - margin, y + 2);
+    y += 6;
+  });
+
+  // Rodapé
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120);
+    doc.text('BOLÃO GB CAMPOS · Tech GB', margin, pageH - 8);
+    doc.text(`Página ${i} de ${totalPages}`, pageW - margin, pageH - 8, { align: 'right' });
+  }
+
+  const nomeLimpo = bolaoAtual.nome.replace(/\s+/g, '_').replace(/[^\w\-]/g, '');
+  doc.save(`loterica_${nomeLimpo}_${bolaoAtual.concurso || ''}.pdf`);
+  toast('PDF para lotérica gerado!', 'success');
 };

@@ -3,8 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bolão UPA Campos — Login</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎲</text></svg>">
+<title>Bolão GB Campos — Login</title>
+
+<!-- ===== FAVICON + ÍCONE MOBILE (logo PNG) ===== -->
+<link rel="icon" type="image/png" href="imagem/logo-192.png">
+<link rel="apple-touch-icon" href="imagem/logo-192.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e3a8a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bolão UPA">
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -14,9 +23,16 @@
 <div class="login-container">
   <div class="login-card">
     <div class="login-header">
-      <div class="login-logo"><i class="fas fa-dice"></i></div>
-      <h1>Bolão UPA Campos</h1>
-      <p>Bolões de loterias — Mega-Sena & Lotofácil</p>
+
+      <!-- ✅ LOGO SUBSTITUI O DADO -->
+      <div class="login-logo">
+        <img src="imagem/logo-192.png"
+             alt="Bolão UPA Campos"
+             onerror="this.outerHTML='<i class=\'fas fa-dice\'></i>'">
+      </div>
+
+      <h1>Bolão GB Campos</h1>
+      <p>Bolões de loterias</p>
     </div>
 
     <form id="login-form" class="login-form">
@@ -40,8 +56,6 @@
       <button type="submit" id="btn-login" class="btn-primary btn-block">
         <i class="fas fa-sign-in-alt"></i> Entrar
       </button>
-
-      <button type="button" id="btn-recuperar" class="btn-link">Esqueci minha senha</button>
     </form>
 
     <div class="login-footer">

@@ -1,5 +1,5 @@
 /* ============================================================
-   BOLÃO UPA CAMPOS — Estilos Globais
+   BOLÃO GB CAMPOS — Estilos Globais
    ============================================================ */
 :root {
   --primary: #1e3a8a;
@@ -41,10 +41,45 @@ body.login-page {
 @keyframes fadeInUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
 .login-header { text-align: center; margin-bottom: 30px; }
 .login-logo {
-  width: 80px; height: 80px; margin: 0 auto 16px;
+  width: 110px;
+  height: 110px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  color: inherit;
+  font-size: inherit;
+  overflow: hidden;
+}
+.login-logo img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  transition: transform 0.25s ease;
+}
+.login-logo img:hover {
+  transform: scale(1.04);
+}
+.login-logo i {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
   background: linear-gradient(135deg, var(--gold), var(--accent));
-  border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 36px; box-shadow: 0 8px 24px rgba(245,158,11,0.35);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 36px;
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.35);
+}
+@media (max-width: 640px) {
+  .login-logo { width: 90px; height: 90px; }
 }
 .login-header h1 { font-size: 1.6rem; color: var(--primary); margin-bottom: 6px; }
 .login-header p { color: var(--text-muted); font-size: 0.9rem; }
@@ -109,14 +144,14 @@ body.login-page {
 
 /* ===== LAYOUT APP ===== */
 body.app-page {
-  background-color: #f3f4f6;
-  background-image:
+    background-color: #f3f4f6;
+    background-image:
     radial-gradient(1000px 600px at 10% -10%, rgba(37, 99, 235, 0.10), transparent 60%),
     radial-gradient(800px 500px at 95% 5%, rgba(16, 185, 129, 0.08), transparent 60%),
     radial-gradient(700px 600px at 50% 115%, rgba(245, 158, 11, 0.10), transparent 60%);
-  background-attachment: fixed;
-  padding-top: 84px;
-  padding-bottom: 40px;
+    background-attachment: fixed;
+    padding-top: 84px;
+    padding-bottom: 40px;
 }
 .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
 .page-header {
@@ -656,3 +691,899 @@ body.is-admin .admin-only { display: inline-flex !important; }
 .pdf-opt-radio span { display: flex; flex-direction: column; gap: 2px; line-height: 1.2; }
 .pdf-opt-radio strong { font-size: 0.9rem; color: var(--primary); }
 .pdf-opt-radio small { font-size: 0.72rem; color: #6a7a8a; }
+
+
+/* ============================================================
+   v3.0 — PRÊMIO, COUNTDOWN, RODAPÉ, SENHA
+   ============================================================ */
+
+/* ===== PRÊMIO EM DESTAQUE ===== */
+.premio-destaque {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(135deg, rgba(245,158,11,0.22), rgba(16,185,129,0.15));
+  border: 2px solid rgba(245,158,11,0.55);
+  border-radius: 12px;
+  padding: 12px 18px;
+  margin: 12px 0 16px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: glowPremio 3s ease-in-out infinite;
+}
+@keyframes glowPremio {
+  0%,100% { box-shadow: 0 4px 16px rgba(245,158,11,0.25); }
+  50%     { box-shadow: 0 4px 26px rgba(245,158,11,0.5); }
+}
+.premio-icon {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, var(--gold), var(--accent));
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 1.3rem;
+  box-shadow: 0 4px 12px rgba(245,158,11,0.5);
+  flex-shrink: 0;
+}
+.premio-text { display: flex; flex-direction: column; gap: 2px; }
+.premio-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,0.85);
+  text-transform: uppercase;
+}
+.premio-valor {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  line-height: 1;
+}
+
+/* Prêmio no card de listagem */
+.bolao-card-premio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border-radius: 20px;
+  font-size: 0.82rem;
+  margin-bottom: 10px;
+  border: 1px solid #fde68a;
+}
+.bolao-card-premio i { color: #b45309; font-size: 0.9rem; }
+.bolao-card-premio span { color: #92400e; font-weight: 500; }
+.bolao-card-premio strong { color: #92400e; font-weight: 800; }
+
+/* ===== COUNTDOWN ===== */
+.bolao-header-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.bolao-header-info { flex: 1 1 360px; min-width: 0; }
+.bolao-header-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 0 1 280px;
+  align-items: stretch;
+}
+
+.countdown-card {
+  background: rgba(255,255,255,0.13);
+  border: 1.5px solid rgba(255,255,255,0.35);
+  border-radius: 12px;
+  padding: 12px 16px;
+  text-align: center;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.countdown-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  opacity: 0.92;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.countdown-timer {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cd-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(0,0,0,0.22);
+  padding: 6px 10px;
+  border-radius: 8px;
+  min-width: 52px;
+}
+.cd-block strong {
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+.cd-block small {
+  font-size: 0.65rem;
+  opacity: 0.75;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+.cd-expirado {
+  display: inline-block;
+  padding: 8px 16px;
+  background: rgba(220,38,38,0.25);
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.countdown-date {
+  font-size: 0.78rem;
+  opacity: 0.85;
+  margin-top: 8px;
+}
+
+/* ===== RODAPÉ TECH GB ===== */
+.painel-footer {
+  max-width: 1200px;
+  margin: 16px auto 0;
+  padding: 20px 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-top: 1px solid rgba(30, 58, 138, 0.12);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  flex-wrap: wrap;
+}
+.painel-footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.25s ease, transform 0.25s ease;
+}
+.painel-footer a i {
+  color: #25d366;
+  font-size: 1rem;
+}
+.painel-footer a:hover {
+  color: var(--accent-hover);
+  transform: translateY(-1px);
+}
+.painel-footer .painel-footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px 4px 6px;
+  border-radius: 30px;
+  background: rgba(30, 58, 138, 0.04);
+  border: 1px solid rgba(30, 58, 138, 0.08);
+  transition: background 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+}
+.painel-footer .painel-footer-link:hover {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.25);
+  transform: translateY(-1px);
+}
+.painel-footer .footer-logo {
+  height: 32px;
+  width: 32px;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: block;
+  transition: transform 0.25s ease;
+}
+.painel-footer .painel-footer-link:hover .footer-logo {
+  transform: scale(1.08) rotate(-2deg);
+}
+.painel-footer .footer-nome {
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: 0.02em;
+  transition: color 0.25s ease;
+}
+.painel-footer .painel-footer-link:hover .footer-nome {
+  color: var(--accent-hover);
+}
+.painel-footer .painel-footer-link i.fa-whatsapp {
+  font-size: 1rem;
+  color: #25d366;
+  transition: transform 0.25s ease;
+}
+.painel-footer .painel-footer-link:hover i.fa-whatsapp {
+  transform: scale(1.15);
+}
+
+/* Responsivo */
+@media (max-width: 640px) {
+  .painel-footer .footer-logo { height: 26px; width: 26px; }
+  .painel-footer .footer-nome { font-size: 0.78rem; }
+  .painel-footer .painel-footer-link { gap: 8px; padding: 4px 10px 4px 4px; }
+  .bolao-header-side { flex: 1 1 100%; }
+  .premio-valor { font-size: 1.25rem; }
+  .cd-block { min-width: 44px; padding: 5px 8px; }
+  .cd-block strong { font-size: 1.1rem; }
+}
+
+/* ============================================================
+   v3.1 — PIX, ESTIMATIVA, COMPROVANTE, TOUCH FIX
+   ============================================================ */
+
+/* ===== FIX MOBILE — botões de número sempre clicáveis ===== */
+.numero-btn {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+}
+@media (max-width: 640px) {
+  .numero-btn {
+    min-width: 46px;
+    min-height: 46px;
+  }
+}
+
+/* ===== VALOR POR EXTENSO (abaixo do prêmio) ===== */
+.premio-extenso {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.82rem;
+  font-style: italic;
+  color: rgba(255,255,255,0.88);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.35);
+  line-height: 1.3;
+}
+
+/* ===== SEÇÃO DO FORM (título divisor) ===== */
+.form-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: linear-gradient(90deg, rgba(30,58,138,0.08), transparent);
+  border-left: 4px solid var(--primary);
+  border-radius: 8px;
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 0.92rem;
+  margin: 12px 0 8px;
+}
+.form-section-title i { color: var(--gold); font-size: 1.1rem; }
+.form-section-title small {
+  color: #6a7a8a;
+  font-weight: 500;
+  font-size: 0.78rem;
+  margin-left: 4px;
+}
+
+/* ===== CARD PIX ===== */
+.pix-card {
+  border-left: 4px solid #00b4d8;
+  background: linear-gradient(135deg, #f0fbff 0%, #fff 100%);
+}
+.pix-card h2 { color: #006b87; border-bottom-color: #b3e5f5; }
+.pix-card h2 i { color: #00b4d8; }
+
+.pix-msg {
+  color: #006b87;
+  font-size: 0.9rem;
+  margin-bottom: 14px;
+  font-weight: 500;
+}
+
+.pix-info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #b3e5f5;
+}
+
+.pix-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pix-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #006b87;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pix-value {
+  font-size: 1rem;
+  color: #1f2937;
+  font-weight: 600;
+}
+.pix-copy-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.pix-copy-row code {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 14px;
+  background: #f0fbff;
+  border: 1.5px dashed #00b4d8;
+  border-radius: 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  color: #006b87;
+  word-break: break-all;
+}
+.pix-row-valor .pix-valor {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.pix-aviso {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: rgba(0,180,216,0.08);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: #006b87;
+  border-left: 3px solid #00b4d8;
+}
+.pix-aviso i { margin-right: 6px; }
+
+@media (max-width: 640px) {
+  .pix-copy-row { flex-direction: column; align-items: stretch; }
+  .pix-copy-row code { min-width: 0; font-size: 0.85rem; }
+}
+
+/* ===== ESTIMATIVA DE PRÊMIOS ===== */
+.estimativa-card {
+  border-left: 4px solid #10b981;
+  background: linear-gradient(135deg, #f0fdf4 0%, #fff 100%);
+}
+.estimativa-card h2 { color: #065f46; border-bottom-color: #a7f3d0; }
+.estimativa-card h2 i { color: #10b981; }
+
+.estimativa-aviso {
+  background: #fef3c7;
+  border-left: 3px solid #f59e0b;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #78350f;
+  margin-bottom: 16px;
+  line-height: 1.55;
+}
+.estimativa-aviso a { color: #1e3a8a; font-weight: 700; text-decoration: underline; }
+
+.estimativa-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.estimativa-item {
+  background: #fff;
+  border: 2px solid #a7f3d0;
+  border-radius: 10px;
+  padding: 14px 12px;
+  text-align: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.estimativa-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(16,185,129,0.18);
+}
+.estimativa-acertos {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #065f46;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+}
+.estimativa-valor {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #065f46;
+  line-height: 1.15;
+  margin-bottom: 4px;
+}
+.estimativa-perc {
+  font-size: 0.72rem;
+  color: #6a7a8a;
+  font-weight: 500;
+}
+
+/* ===== COMPROVANTE ===== */
+.comprovante-card {
+  border-left: 4px solid #f59e0b;
+  background: linear-gradient(135deg, #fefce8 0%, #fff 100%);
+}
+.comprovante-card h2 { color: #92400e; border-bottom-color: #fde68a; }
+.comprovante-card h2 i { color: #f59e0b; }
+
+/* ===== RESPONSIVO ===== */
+@media (max-width: 640px) {
+  .estimativa-grid { grid-template-columns: 1fr 1fr; }
+  .premio-extenso { font-size: 0.75rem; }
+}
+
+/* ============================================================
+   v3.2 — RESPONSIVIDADE MOBILE + ESTIMATIVAS POR EXTENSO
+   ============================================================ */
+
+/* ===== NAVBAR MOBILE — role-badge não vaza mais ===== */
+@media (max-width: 640px) {
+  .navbar {
+    height: 60px;
+  }
+  .nav-content {
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .brand {
+    font-size: 0.95rem;
+    gap: 6px;
+    min-width: 0;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .brand i {
+    font-size: 1.15rem;
+    flex-shrink: 0;
+  }
+  .nav-user {
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .user-email {
+    display: none;
+  }
+  .role-badge {
+    font-size: 0.6rem;
+    padding: 3px 7px;
+    letter-spacing: 0.2px;
+    line-height: 1.15;
+  }
+  .nav-btn-danger {
+    padding: 6px 10px;
+    border-radius: 50%;
+    min-width: 36px;
+    height: 36px;
+  }
+  body.app-page { padding-top: 76px; }
+}
+
+/* Em telas MUITO pequenas, o badge some (o título já basta) */
+@media (max-width: 380px) {
+  .role-badge { display: none !important; }
+  .brand { font-size: 0.88rem; }
+}
+
+/* ===== PREMIO DESTAQUE — responsivo ===== */
+.premio-destaque {
+  flex-wrap: wrap;
+  padding: 12px 14px;
+}
+.premio-icon {
+  width: 38px;
+  height: 38px;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.premio-text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.premio-valor {
+  font-size: clamp(1.1rem, 4.2vw, 1.5rem);
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.1;
+}
+.premio-label {
+  font-size: clamp(0.65rem, 2.6vw, 0.72rem);
+}
+.premio-extenso {
+  font-size: clamp(0.72rem, 3vw, 0.82rem);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* ===== BOLÃO CARD (listagem) — prêmio não vaza ===== */
+.bolao-card-premio {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  word-break: break-word;
+}
+.bolao-card-premio strong {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+.bolao-card-title {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* ===== ESTIMATIVA — Grid responsivo e sem overflow ===== */
+.estimativa-aviso {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.estimativa-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.estimativa-item {
+  background: #fff;
+  border: 2px solid #a7f3d0;
+  border-radius: 10px;
+  padding: 14px 12px;
+  text-align: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.estimativa-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(16,185,129,0.18);
+}
+
+.estimativa-acertos {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #065f46;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  line-height: 1.2;
+}
+
+.estimativa-valor {
+  font-size: clamp(0.95rem, 3.6vw, 1.15rem);
+  font-weight: 800;
+  color: #065f46;
+  line-height: 1.15;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* ✅ NOVO: valor por extenso abaixo do numérico */
+.estimativa-extenso {
+  font-size: clamp(0.65rem, 2.8vw, 0.75rem);
+  font-style: italic;
+  color: #4b5563;
+  line-height: 1.3;
+  margin: 2px 0 4px;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.estimativa-perc {
+  font-size: clamp(0.65rem, 2.8vw, 0.72rem);
+  color: #6b7280;
+  font-weight: 500;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+/* Mobile: 1 coluna (valores longos não quebram feio) */
+@media (max-width: 560px) {
+  .estimativa-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .estimativa-item {
+    padding: 12px 14px;
+    text-align: left;
+  }
+  .estimativa-acertos {
+    font-size: 0.72rem;
+    text-align: center;
+  }
+  .estimativa-valor {
+    font-size: 1.05rem;
+    text-align: center;
+  }
+  .estimativa-extenso {
+    font-size: 0.72rem;
+    text-align: center;
+  }
+  .estimativa-perc {
+    font-size: 0.68rem;
+    text-align: center;
+  }
+}
+
+/* ===== BOLÃO INFO GRID — itens não vazam ===== */
+.bolao-info-item span {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+.bolao-card-actions {
+  flex-wrap: wrap;
+}
+
+/* ===== BOLÃO HEADER — info e side empilham bem ===== */
+@media (max-width: 768px) {
+  .bolao-header-side {
+    flex: 1 1 100%;
+  }
+  .bolao-header-info {
+    flex: 1 1 100%;
+  }
+  .countdown-timer {
+    gap: 6px;
+  }
+}
+
+/* ===== TAGS — quebra de linha em mobile ===== */
+.bolao-meta {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.bolao-meta .tag {
+  word-break: break-word;
+  max-width: 100%;
+}
+
+/* ===== ADMIN LINHA — empilha no celular ===== */
+@media (max-width: 480px) {
+  .admin-linha {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .admin-actions {
+    justify-content: flex-start;
+  }
+  .admin-actions button {
+    flex: 1;
+  }
+}
+
+/* ===== PARTICIPANTE — jogo-mini pode quebrar ===== */
+.jogo-mini {
+  flex-wrap: wrap;
+  word-break: break-word;
+}
+.jogo-mini .bolinha-sm {
+  flex-shrink: 0;
+}
+
+/* ===== RANKING — tabela não vaza ===== */
+.ranking-tabela {
+  word-break: break-word;
+}
+.ranking-tabela td:first-child {
+  width: 50px;
+}
+@media (max-width: 480px) {
+  .ranking-tabela th,
+  .ranking-tabela td {
+    padding: 8px 6px;
+    font-size: 0.82rem;
+  }
+}
+
+/* ===== RANKING SEM ACERTO — lista de tags ===== */
+.ranking-sem-acerto-lista {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ranking-sem-acerto-lista .tag {
+  max-width: 100%;
+  word-break: break-word;
+}
+
+/* ===== PIX — código longo não vaza ===== */
+.pix-copy-row code {
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/* ===== COMPROVANTE — botão em mobile ===== */
+@media (max-width: 480px) {
+  .comprovante-card .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ============================================================
+   v3.3 — FIXES MOBILE
+   ============================================================ */
+
+/* ===== NOME DO BOLÃO NA NAVBAR (não corta) ===== */
+@media (max-width: 640px) {
+  .brand {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    font-size: 0.82rem !important;
+    line-height: 1.15;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: calc(100vw - 160px);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden !important;
+    text-align: left;
+  }
+  .brand i {
+    font-size: 1rem !important;
+    margin-right: 2px;
+  }
+  .nav-btn-danger {
+    min-width: 32px !important;
+    height: 32px !important;
+    padding: 4px 8px !important;
+  }
+  .role-badge {
+    font-size: 0.55rem !important;
+    padding: 2px 6px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .brand { font-size: 0.75rem !important; max-width: calc(100vw - 130px); }
+}
+
+/* ===== ALERTA DE PAGAMENTO EM MOBILE ===== */
+@media (max-width: 640px) {
+  .alerta {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    padding: 12px 14px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    gap: 8px;
+  }
+  .alerta i {
+    flex-shrink: 0;
+    margin-top: 1px;
+    font-size: 1rem;
+  }
+  .alerta strong {
+    display: inline;
+  }
+}
+
+
+/* ============================================================
+   v3.4 — DEFESA EM PROFUNDIDADE (controle de acesso)
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   REGRA-CHAVE: qualquer elemento com data-requires="pago"
+   fica OCULTO por padrão. Só aparece quando o body recebe a
+   classe .can-see-all (aplicada via JS após confirmar
+   pagamento aprovado ou admin).
+   ------------------------------------------------------------ */
+body:not(.can-see-all) [data-requires="pago"] {
+  display: none !important;
+}
+
+/* Botões de exportação também protegidos por id (redundância) */
+body:not(.can-see-all) #btn-export-pdf,
+body:not(.can-see-all) #btn-export-excel,
+body:not(.can-see-all) #btn-export-lottery {
+  display: none !important;
+}
+
+/* Card de comprovante idem */
+body:not(.can-see-all) .comprovante-card {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------
+   CORREÇÃO: .brand em mobile tinha overflow contraditório
+   (visible + hidden na mesma regra). Apenas a versão "hidden"
+   com line-clamp faz sentido.
+   ------------------------------------------------------------ */
+@media (max-width: 640px) {
+  .brand {
+    white-space: normal !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+    font-size: 0.82rem !important;
+    line-height: 1.15;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: calc(100vw - 160px);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    text-align: left;
+    word-break: break-word;
+  }
+  .brand i {
+    font-size: 1rem !important;
+    margin-right: 2px;
+    flex-shrink: 0;
+  }
+  .nav-btn-danger {
+    min-width: 32px !important;
+    height: 32px !important;
+    padding: 4px 8px !important;
+  }
+  .role-badge {
+    font-size: 0.55rem !important;
+    padding: 2px 6px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .brand { font-size: 0.75rem !important; max-width: calc(100vw - 130px); }
+}
+
+/* ------------------------------------------------------------
+   ALERTA em mobile (evita quebra estranha de texto)
+   ------------------------------------------------------------ */
+@media (max-width: 640px) {
+  .alerta {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    padding: 12px 14px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    gap: 8px;
+  }
+  .alerta i {
+    flex-shrink: 0;
+    margin-top: 1px;
+    font-size: 1rem;
+  }
+  .alerta strong {
+    display: inline;
+  }
+  .alerta > span,
+  .alerta > div {
+    flex: 1 1 auto;
+    min-width: 0;
+    word-break: break-word;
+  }
+}
